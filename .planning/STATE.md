@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 2 of 3 (Tile UI and Interaction) — IN PROGRESS
-Plan: 2 of 4 in current phase (02-01 and 02-02 complete)
-Status: Plan 02-02 complete — visual layer built; index.html, style.css, tile.ts, grid.ts all ready; Plan 02-03 can now proceed
-Last activity: 2026-02-22 — Plan 02-02 complete; 3x3 grid CSS, all tile state classes, tile/grid UI modules built
+Plan: 3 of 4 in current phase (02-01, 02-02, and 02-03 complete)
+Status: Plan 02-03 complete — action sheet, rename dialog, and full main.ts wired; feature-complete Phase 2 app; Plan 02-04 (iPhone Safari verification) ready to proceed
+Last activity: 2026-02-22 — Plan 02-03 complete; showActionSheet, showRenameDialog, durationSeconds, recording timer, long-press management all built
 
-Progress: [█████░░░░░] 55% (Phase 1 done + Plans 02-01 and 02-02 done)
+Progress: [██████░░░░] 65% (Phase 1 done + Plans 02-01, 02-02, and 02-03 done)
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [█████░░░░░] 55% (Phase 1 done + Plans 02-01 and 0
 | Phase 01-audio-and-storage-pipeline P04 | 15 | 3 tasks | 4 files |
 | Phase 02-tile-ui-and-interaction P01 | 2 | 3 tasks | 4 files |
 | Phase 02-tile-ui-and-interaction P02 | 2 | 2 tasks | 4 files |
+| Phase 02-tile-ui-and-interaction P03 | 2 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,10 @@ Recent decisions affecting current work:
 - [02-02]: grid.ts wires attachLongPress internally — main.ts supplies callbacks only, no second element iteration needed
 - [02-02]: Dialogs as direct body children outside #app — avoids inheriting user-select: none from tile CSS
 - [02-02]: Action sheet uses transform: translateY(100%) hidden state — avoids display:none transition pitfall
+- [02-03]: Clone-before-wire pattern for action sheet buttons — cloneNode(true) before addEventListener eliminates stale listener accumulation on repeated showModal()
+- [02-03]: requestAnimationFrame focus delay in rename dialog — iOS Safari keyboard won't appear if input.focus() fires synchronously during showModal()
+- [02-03]: triggerHaptic() before any await in handleTileTap — iOS user-gesture context lost after first await; haptic must fire synchronously
+- [02-03]: formatTimerDisplay inline in main.ts — timer display has different semantics from tile.ts formatDuration; kept local to avoid cross-concern import
 
 ### Pending Todos
 
@@ -82,5 +87,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 02-02-PLAN.md — visual layer done (index.html, style.css, tile.ts, grid.ts); Plan 02-03 ready to execute
+Stopped at: Completed 02-03-PLAN.md — action sheet, rename dialog, full main.ts wired; feature-complete Phase 2 app; Plan 02-04 (iPhone Safari verification) ready to execute
 Resume file: None

@@ -20,13 +20,15 @@ provides:
   - requestStoragePersistence() on first tap (STOR-03)
   - 25s warning + 30s auto-stop wired to UI
   - Parallel playback: multiple tiles play simultaneously
+  - HTTPS dev server via @vitejs/plugin-basic-ssl for iOS getUserMedia
 affects:
   - UI phase (Phase 2 replaces main.ts but must preserve tap handler patterns)
   - State machine types (Phase 2 imports TileState, TileData, AppState from store.ts)
 
 # Tech tracking
 tech-stack:
-  added: []
+  added:
+    - "@vitejs/plugin-basic-ssl (dev dep) — self-signed HTTPS for dev server; required for iOS getUserMedia on LAN IP"
   patterns:
     - "State machine: mutate-in-place AppState, transitionTile() clears stale fields per target state"
     - "Tap handler order: requestStoragePersistence → ensureAudioContextRunning → dispatch by state"
@@ -49,6 +51,7 @@ key-decisions:
   - "Playing re-tap: stopTile() then playBlob() restart — PLAY-02 compliance"
   - "Defective blob error preserves record field in TileData — no deletion from IndexedDB"
   - "Playback error on has-record tile is no-op in Phase 1 — Phase 2 adds long-press re-record"
+  - "HTTPS required for iOS getUserMedia: @vitejs/plugin-basic-ssl added; self-signed cert accepted once in Safari"
 
 patterns-established:
   - "Tap pattern: requestStoragePersistence() → ensureAudioContextRunning() → switch(tile.state)"
@@ -59,21 +62,21 @@ patterns-established:
 requirements-completed: [REC-01, REC-02, REC-04, STOR-01, STOR-02, STOR-03, PLAY-01, PLAY-02]
 
 # Metrics
-duration: ~10min
+duration: ~15min
 completed: 2026-02-22
 ---
 
 # Phase 01 Plan 04: State Machine and App Harness Summary
 
-**9-slot tile state machine (6 states, full transition graph) wired to MediaRecorder, Web Audio API, and IndexedDB into a functional test harness verified on desktop; iPhone Safari verification pending at checkpoint**
+**9-slot tile state machine (6 states, full transition graph) wired to MediaRecorder, Web Audio API, and IndexedDB — all 7 iPhone Safari pipeline tests passed including parallel playback, 30s auto-stop, and storage persistence across reloads**
 
 ## Performance
 
-- **Duration:** ~10 min
+- **Duration:** ~15 min
 - **Started:** 2026-02-22T18:20:06Z
-- **Completed:** 2026-02-22T18:30:00Z (checkpoint — iPhone verification pending)
-- **Tasks:** 2 of 3 (Task 3 awaits human iPhone verification)
-- **Files modified:** 2
+- **Completed:** 2026-02-22T20:45:00Z
+- **Tasks:** 3 of 3 (including iPhone Safari verification)
+- **Files modified:** 4
 
 ## Accomplishments
 
@@ -84,7 +87,8 @@ completed: 2026-02-22
 - Microphone permission lazy: `getMicrophoneStream()` called only in tap handler for `empty` state (REC-04)
 - Inline error messages on button text — no toast, no modal (CONTEXT.md locked decision)
 - 25s warning sets `warningActive=true` → button shows "(25s!)" indicator
-- `npm run build` exits 0; `npm run dev` serves page; dev server network URL verified on local network
+- HTTPS dev server via `@vitejs/plugin-basic-ssl` — fixes iOS Safari `getUserMedia` secure context requirement
+- All 7 iPhone Safari pipeline tests passed and approved by user
 
 ## Task Commits
 
@@ -92,6 +96,7 @@ Each task was committed atomically:
 
 1. **Task 1: 9-slot state machine** - `0ae9bcc` (feat)
 2. **Task 2: App bootstrap and tap handler harness** - `0ea6f3f` (feat)
+3. **Fix: HTTPS for iOS getUserMedia** - `dabb595` (fix)
 
 **Plan metadata:** (docs commit — see below)
 
@@ -99,6 +104,8 @@ Each task was committed atomically:
 
 - `src/state/store.ts` — `TileState`, `TileData`, `AppState`, `createAppState`, `transitionTile`; strict TypeScript, no `any` types
 - `src/main.ts` — Full app bootstrap with `loadAllSlots`, `renderTiles`, `handleTileTap` (all 6 state cases); imports from all 5 modules
+- `vite.config.ts` — `@vitejs/plugin-basic-ssl` plugin added; `server.https: true`
+- `package.json` / `package-lock.json` — `@vitejs/plugin-basic-ssl` dev dependency added
 
 ## Exported API — src/state/store.ts
 
@@ -128,13 +135,19 @@ Each task was committed atomically:
 
 ## iPhone Safari Verification — Task 3 Results
 
-**Status: RE-TEST REQUIRED — HTTPS fix applied; awaiting human re-verification**
+**Status: APPROVED — all 7 tests passed**
 
-First test attempt failed: tapping a tile showed "Slot 0: error Mikrofon nicht verfügbar". Root cause: iOS Safari enforces secure context for `getUserMedia`. Serving over `http://192.168.x.x:5173` (HTTP on a LAN IP) is not a secure context — Safari refuses microphone access with `NotAllowedError`.
+| Test | Requirement | Result |
+|---|---|---|
+| 1. No permission prompt on load | REC-04 | PASSED |
+| 2. Record and save survives page reload | REC-01, REC-02, STOR-01, STOR-02 | PASSED |
+| 3. Playback works and re-tap restarts | PLAY-01, PLAY-02 | PASSED |
+| 4. Parallel playback — two tiles simultaneously | locked decision | PASSED |
+| 5. 25s warning fires, 30s auto-stop saves | locked decision | PASSED |
+| 6. No errors from requestStoragePersistence | STOR-03 | PASSED |
+| 7. Inline error hint on permission denied | locked decision | PASSED |
 
-Fix applied: installed `@vitejs/plugin-basic-ssl` and configured Vite to serve HTTPS with a self-signed certificate. The dev server URL is now `https://192.168.x.x:5173`. The user must accept the self-signed certificate warning in Safari once before testing.
-
-See checkpoint message for 7-test protocol.
+First test attempt failed because iOS Safari requires a secure context (HTTPS) for `getUserMedia`. HTTP on a LAN IP is not a secure context. HTTPS fix (commit `dabb595`) resolved this. User accepted the self-signed certificate in Safari once, then all 7 tests passed.
 
 ## Decisions Made
 
@@ -143,6 +156,7 @@ See checkpoint message for 7-test protocol.
 - Defective blob error (has-record tile) is no-op in Phase 1 — Phase 2 long-press adds re-record; the error message stays visible
 - `stopTile()` called before `playBlob()` on re-tap of playing tile — ensures PLAY-02 (restart from beginning) works correctly
 - `onComplete` closure captures `index` by value — safe since index is fixed for the lifetime of the tap handler invocation
+- HTTPS required for `getUserMedia` on iOS Safari — `@vitejs/plugin-basic-ssl` added as dev dependency
 
 ## Deviations from Plan
 
@@ -154,13 +168,17 @@ See checkpoint message for 7-test protocol.
 - **Issue:** iOS Safari rejected `getUserMedia` with a NotAllowedError because the dev server was served over HTTP on a LAN IP (`http://192.168.x.x:5173`). iOS enforces a strict secure context requirement — only `localhost` or HTTPS origins are allowed.
 - **Fix:** Installed `@vitejs/plugin-basic-ssl` (dev dep) and updated `vite.config.ts` with `basicSsl()` plugin + `server: { https: true }`. The dev server now serves HTTPS with a self-signed certificate.
 - **Files modified:** `vite.config.ts`, `package.json`, `package-lock.json`
-- **Commit:** `dabb595`
+- **Verification:** All 7 iPhone Safari tests passed after applying fix and accepting the self-signed cert in Safari.
+- **Committed in:** `dabb595`
 
-The `saveSlot` call in `onComplete` required constructing the `SlotRecord` inline; `recordedAt` uses `Date.now()` at save time (not recording start time) which matches the plan's intent.
+---
+
+**Total deviations:** 1 auto-fixed (Rule 1 — bug)
+**Impact on plan:** Required for iOS Safari to permit microphone access. No scope creep.
 
 ## Issues Encountered
 
-None during Tasks 1-2. TypeScript compiled cleanly on first attempt.
+- iOS Safari `getUserMedia` requires HTTPS even on LAN — resolved by adding `@vitejs/plugin-basic-ssl` (see Deviations above). After fix, all tests passed cleanly.
 
 ## User Setup Required
 
@@ -168,11 +186,11 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-- `src/state/store.ts` and `src/main.ts` complete; build passing
-- iPhone Safari verification (Task 3) required before Phase 1 is complete
-- After iPhone verification passes, Phase 2 (UI) can begin
-- Phase 2 will replace `src/main.ts` entirely but must import `TileState`, `TileData`, `AppState` from `src/state/store.ts`
+- Phase 1 complete: all audio and storage modules built and verified on real iPhone
+- `src/state/store.ts` exports (`TileState`, `TileData`, `AppState`) are stable — Phase 2 UI imports these
+- `src/main.ts` will be replaced entirely by Phase 2 UI; `src/state/store.ts` is preserved
+- Dev server runs HTTPS (`npm run dev -- --host`) — required for continued iOS testing during Phase 2
 
 ---
 *Phase: 01-audio-and-storage-pipeline*
-*Completed: 2026-02-22 (pending iPhone checkpoint)*
+*Completed: 2026-02-22*

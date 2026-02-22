@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 2 of 3 (Tile UI and Interaction) — IN PROGRESS
-Plan: 1 of 4 in current phase (02-01 complete)
-Status: Plan 02-01 complete — data types and input primitives ready; Plans 02-02 and 02-03 can now proceed
-Last activity: 2026-02-22 — Plan 02-01 complete; label fields + long-press + haptic utilities built
+Plan: 2 of 4 in current phase (02-01 and 02-02 complete)
+Status: Plan 02-02 complete — visual layer built; index.html, style.css, tile.ts, grid.ts all ready; Plan 02-03 can now proceed
+Last activity: 2026-02-22 — Plan 02-02 complete; 3x3 grid CSS, all tile state classes, tile/grid UI modules built
 
-Progress: [████░░░░░░] 44% (Phase 1 done + Plan 02-01 done)
+Progress: [█████░░░░░] 55% (Phase 1 done + Plans 02-01 and 02-02 done)
 
 ## Performance Metrics
 
@@ -28,7 +28,7 @@ Progress: [████░░░░░░] 44% (Phase 1 done + Plan 02-01 done)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Audio and Storage Pipeline | 4/4 | ~27 min | ~7 min |
-| 2. Tile UI and Interaction | 1/4 | ~2 min | ~2 min |
+| 2. Tile UI and Interaction | 2/4 | ~4 min | ~2 min |
 
 **Recent Trend:**
 - Last 5 plans: 01-01 (~7 min), 01-02 (~1 min), 01-03 (~1 min), 01-04 (~15 min including iPhone verification), 02-01 (~2 min)
@@ -37,6 +37,7 @@ Progress: [████░░░░░░] 44% (Phase 1 done + Plan 02-01 done)
 *Updated after each plan completion*
 | Phase 01-audio-and-storage-pipeline P04 | 15 | 3 tasks | 4 files |
 | Phase 02-tile-ui-and-interaction P01 | 2 | 3 tasks | 4 files |
+| Phase 02-tile-ui-and-interaction P02 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,11 @@ Recent decisions affecting current work:
 - [02-01]: touchend must NOT be passive — needs preventDefault() to suppress iOS synthetic click after long-press fires
 - [02-01]: navigator.vibrate optional chaining compiles cleanly against DOM lib — no type cast needed
 - [02-01]: label field optional with undefined semantics — avoids any IndexedDB migration for existing records
+- [02-02]: Duration display deferred — durationSeconds not yet in SlotRecord schema; has-sound tiles show label only
+- [02-02]: escapeHtml() in tile.ts prevents XSS from user-supplied tile labels
+- [02-02]: grid.ts wires attachLongPress internally — main.ts supplies callbacks only, no second element iteration needed
+- [02-02]: Dialogs as direct body children outside #app — avoids inheriting user-select: none from tile CSS
+- [02-02]: Action sheet uses transform: translateY(100%) hidden state — avoids display:none transition pitfall
 
 ### Pending Todos
 
@@ -76,5 +82,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 02-01-PLAN.md — label fields + long-press + haptic primitives done; Plans 02-02 and 02-03 ready to execute
+Stopped at: Completed 02-02-PLAN.md — visual layer done (index.html, style.css, tile.ts, grid.ts); Plan 02-03 ready to execute
 Resume file: None

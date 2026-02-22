@@ -9,8 +9,8 @@ Requirements für den ersten Release. Jedes mapped auf eine Roadmap-Phase.
 
 ### Grid
 
-- [ ] **GRID-01**: App zeigt genau 9 Kacheln in einem 3×3-Raster auf einem einzelnen Screen
-- [ ] **GRID-02**: Leere Kacheln sind visuell klar von Kacheln mit Aufnahmen unterscheidbar
+- [x] **GRID-01**: App zeigt genau 9 Kacheln in einem 3×3-Raster auf einem einzelnen Screen
+- [x] **GRID-02**: Leere Kacheln sind visuell klar von Kacheln mit Aufnahmen unterscheidbar
 
 ### Playback
 
@@ -22,7 +22,7 @@ Requirements für den ersten Release. Jedes mapped auf eine Roadmap-Phase.
 
 - [x] **REC-01**: Antippen einer leeren Kachel startet eine Aufnahme-Session
 - [x] **REC-02**: Nochmaliges Antippen der aufnehmenden Kachel stoppt und speichert die Aufnahme
-- [ ] **REC-03**: Aktiv aufnehmende Kacheln zeigen einen pulsierenden visuellen Indikator
+- [x] **REC-03**: Aktiv aufnehmende Kacheln zeigen einen pulsierenden visuellen Indikator
 - [x] **REC-04**: Mikrofon-Berechtigung wird beim ersten Aufnahmeversuch angefragt (nicht beim App-Start)
 
 ### Management
@@ -76,14 +76,14 @@ Welche Phasen welche Requirements abdecken.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GRID-01 | Phase 2 | Pending |
-| GRID-02 | Phase 2 | Pending |
+| GRID-01 | Phase 2 | Complete |
+| GRID-02 | Phase 2 | Complete |
 | PLAY-01 | Phase 1 | Complete (01-03) |
 | PLAY-02 | Phase 1 | Complete (01-03) |
 | PLAY-03 | Phase 2 | Complete |
 | REC-01 | Phase 1 | Complete |
 | REC-02 | Phase 1 | Complete |
-| REC-03 | Phase 2 | Pending |
+| REC-03 | Phase 2 | Complete |
 | REC-04 | Phase 1 | Complete |
 | MGMT-01 | Phase 2 | Complete |
 | MGMT-02 | Phase 2 | Pending |

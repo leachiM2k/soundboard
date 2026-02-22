@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 1 of 3 (Audio and Storage Pipeline)
-Plan: 4 of 4 in current phase (at checkpoint — iPhone verification pending)
-Status: In progress
-Last activity: 2026-02-22 — HTTPS fix applied (dabb595); dev server now serves https://; awaiting iPhone Safari re-verification at Task 3
+Phase: 1 of 3 (Audio and Storage Pipeline) — COMPLETE
+Plan: 4 of 4 in current phase (all plans complete)
+Status: Phase 1 complete — ready for Phase 2 (UI)
+Last activity: 2026-02-22 — Plan 01-04 complete; all 7 iPhone Safari tests passed and approved
 
-Progress: [████░░░░░░] 33%
+Progress: [███░░░░░░░] 33% (Phase 1 of 3 done)
 
 ## Performance Metrics
 
@@ -27,13 +27,14 @@ Progress: [████░░░░░░] 33%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1. Audio and Storage Pipeline | 3/4 | ~12 min | ~4 min |
+| 1. Audio and Storage Pipeline | 4/4 | ~27 min | ~7 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (~7 min), 01-02 (~1 min), 01-03 (~1 min)
-- Trend: Decreasing as plans become more focused
+- Last 5 plans: 01-01 (~7 min), 01-02 (~1 min), 01-03 (~1 min), 01-04 (~15 min including iPhone verification)
+- Trend: Stable; device verification adds real-world overhead
 
 *Updated after each plan completion*
+| Phase 01-audio-and-storage-pipeline P04 | 15 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -57,6 +58,7 @@ Recent decisions affecting current work:
 - [01-04]: Error retry (no-record) immediately calls handleTileTap(index) on same tap — no second tap required
 - [01-04]: Defective blob error (has-record tile) is no-op in Phase 1 — Phase 2 long-press adds re-record
 - [01-04]: HTTPS required for getUserMedia on iOS — @vitejs/plugin-basic-ssl enables self-signed cert; must be accepted once in Safari before testing
+- [Phase 01-audio-and-storage-pipeline]: HTTPS required for iOS getUserMedia: @vitejs/plugin-basic-ssl added; self-signed cert accepted once in Safari
 
 ### Pending Todos
 
@@ -64,11 +66,10 @@ None.
 
 ### Blockers/Concerns
 
-- Real device testing required for Phase 1 audio work — iOS Safari AudioContext user-gesture enforcement, MediaRecorder MIME types, and IndexedDB behavior differ significantly from desktop and simulator
-- AudioContext must be unlocked on very first user tap — Safari silently fails with no error if this is skipped
+None. Phase 1 complete and verified on real device.
 
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Checkpoint at Task 3 of 01-04-PLAN.md — HTTPS fix applied; awaiting iPhone Safari re-verification (accept certificate, then run 7 tests)
+Stopped at: Completed 01-04-PLAN.md — Phase 1 fully done; ready for Phase 2 (UI)
 Resume file: None

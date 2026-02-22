@@ -62,7 +62,12 @@ Plans:
   1. The app can be added to the iPhone Home Screen via Safari and launches in standalone mode
   2. The app works fully offline after the initial load — all tiles, playback, and recording function without a network connection
   3. A one-time "Add to Home Screen" prompt appears when the user opens the app in Safari browser mode
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Install vite-plugin-pwa, generate icons, configure manifest + SW, offline.html, iOS meta tags
+- [ ] 03-02-PLAN.md — Install banner (once-per-day, post-first-tap, not in standalone) + wake lock during recording
+- [ ] 03-03-PLAN.md — iPhone Safari verification checkpoint (4 tests: install, offline, banner, wake lock)
 
 ## Progress
 
@@ -72,5 +77,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Audio and Storage Pipeline | 4/4 | Complete    | 2026-02-22 |
-| 2. Tile UI and Interaction | 4/4 | Complete   | 2026-02-22 |
+| 2. Tile UI and Interaction | 4/4 | Complete    | 2026-02-22 |
 | 3. PWA Shell and Offline | 0/TBD | Not started | - |

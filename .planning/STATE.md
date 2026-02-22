@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 1 of 3 (Audio and Storage Pipeline)
-Plan: 1 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-22 — Completed 01-01: project scaffold + storage foundation
+Last activity: 2026-02-22 — Completed 01-03: audio player module (player.ts)
 
-Progress: [█░░░░░░░░░] 8%
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: ~7 minutes
-- Total execution time: 0.1 hours
+- Total plans completed: 3
+- Average duration: ~4 minutes
+- Total execution time: 0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1. Audio and Storage Pipeline | 1/4 | ~7 min | ~7 min |
+| 1. Audio and Storage Pipeline | 3/4 | ~12 min | ~4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (~7 min)
-- Trend: Baseline established
+- Last 5 plans: 01-01 (~7 min), 01-02 (~1 min), 01-03 (~1 min)
+- Trend: Decreasing as plans become more focused
 
 *Updated after each plan completion*
 
@@ -47,6 +47,12 @@ Recent decisions affecting current work:
 - [01-01]: Manual scaffold instead of npm create vite — non-empty directory caused npm create vite to cancel; all vanilla-ts template files created explicitly
 - [01-01]: idb-keyval pinned at 6.2.2 — exact version specified in plan to ensure reproducible builds
 - [01-01]: MIME probe order: webm;codecs=opus > webm > mp4 > ogg;codecs=opus — covers all major browsers with iOS Safari mp4 as fallback
+- [01-02]: MediaRecorderOptions (not MediaRecorderInit) — TypeScript 5.8.3 DOM lib uses MediaRecorderOptions; MediaRecorderInit does not exist
+- [01-02]: audioBitsPerSecond intentionally absent — iOS Safari may ignore it; AAC default is acceptable for 30s mono speech
+- [01-02]: recorder.start() with no timeslice — chunked recording with short timeslices is unreliable on iOS Safari
+- [01-03]: AudioBuffer cached per tile after first decode — balances startup speed and repeat-play latency; cleared on recording delete/replace
+- [01-03]: decodeAudioData failure propagates to caller — defective blobs NOT deleted from storage
+- [01-03]: statechange handler is intentional no-op — auto-resuming on interruption is anti-pattern on iOS Safari; resume() only inside user gesture
 
 ### Pending Todos
 
@@ -60,5 +66,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 01-01-PLAN.md — project scaffold, format.ts, db.ts committed
+Stopped at: Completed 01-03-PLAN.md — player.ts with AudioContext singleton and per-tile playback committed
 Resume file: None

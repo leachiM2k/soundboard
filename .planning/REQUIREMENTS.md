@@ -14,16 +14,16 @@ Requirements für den ersten Release. Jedes mapped auf eine Roadmap-Phase.
 
 ### Playback
 
-- [ ] **PLAY-01**: User kann einen aufgenommenen Sound durch Antippen der Kachel abspielen
-- [ ] **PLAY-02**: Nochmaliges Antippen einer aktiv spielenden Kachel stoppt den Sound und startet ihn neu
+- [x] **PLAY-01**: User kann einen aufgenommenen Sound durch Antippen der Kachel abspielen
+- [x] **PLAY-02**: Nochmaliges Antippen einer aktiv spielenden Kachel stoppt den Sound und startet ihn neu
 - [ ] **PLAY-03**: Gerät gibt beim Antippen einer Kachel ein kurzes haptisches Feedback
 
 ### Recording
 
-- [ ] **REC-01**: Antippen einer leeren Kachel startet eine Aufnahme-Session
-- [ ] **REC-02**: Nochmaliges Antippen der aufnehmenden Kachel stoppt und speichert die Aufnahme
+- [x] **REC-01**: Antippen einer leeren Kachel startet eine Aufnahme-Session
+- [x] **REC-02**: Nochmaliges Antippen der aufnehmenden Kachel stoppt und speichert die Aufnahme
 - [ ] **REC-03**: Aktiv aufnehmende Kacheln zeigen einen pulsierenden visuellen Indikator
-- [ ] **REC-04**: Mikrofon-Berechtigung wird beim ersten Aufnahmeversuch angefragt (nicht beim App-Start)
+- [x] **REC-04**: Mikrofon-Berechtigung wird beim ersten Aufnahmeversuch angefragt (nicht beim App-Start)
 
 ### Management
 
@@ -78,13 +78,13 @@ Welche Phasen welche Requirements abdecken.
 |-------------|-------|--------|
 | GRID-01 | Phase 2 | Pending |
 | GRID-02 | Phase 2 | Pending |
-| PLAY-01 | Phase 1 | Pending |
-| PLAY-02 | Phase 1 | Pending |
+| PLAY-01 | Phase 1 | Complete (01-03) |
+| PLAY-02 | Phase 1 | Complete (01-03) |
 | PLAY-03 | Phase 2 | Pending |
-| REC-01 | Phase 1 | Pending |
-| REC-02 | Phase 1 | Pending |
+| REC-01 | Phase 1 | Complete |
+| REC-02 | Phase 1 | Complete |
 | REC-03 | Phase 2 | Pending |
-| REC-04 | Phase 1 | Pending |
+| REC-04 | Phase 1 | Complete |
 | MGMT-01 | Phase 2 | Pending |
 | MGMT-02 | Phase 2 | Pending |
 | STOR-01 | Phase 1 | Complete (01-01) |

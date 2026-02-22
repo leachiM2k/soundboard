@@ -32,9 +32,9 @@ Requirements für den ersten Release. Jedes mapped auf eine Roadmap-Phase.
 
 ### Storage
 
-- [ ] **STOR-01**: Aufnahmen werden lokal auf dem Gerät gespeichert (nicht an Server gesendet)
-- [ ] **STOR-02**: Aufnahmen überleben App-Neustarts und bleiben an ihrer Kacheln-Position
-- [ ] **STOR-03**: App ruft `navigator.storage.persist()` auf, um langfristige Speicherung zu sichern
+- [x] **STOR-01**: Aufnahmen werden lokal auf dem Gerät gespeichert (nicht an Server gesendet)
+- [x] **STOR-02**: Aufnahmen überleben App-Neustarts und bleiben an ihrer Kacheln-Position
+- [x] **STOR-03**: App ruft `navigator.storage.persist()` auf, um langfristige Speicherung zu sichern
 
 ### PWA
 
@@ -87,9 +87,9 @@ Welche Phasen welche Requirements abdecken.
 | REC-04 | Phase 1 | Pending |
 | MGMT-01 | Phase 2 | Pending |
 | MGMT-02 | Phase 2 | Pending |
-| STOR-01 | Phase 1 | Pending |
-| STOR-02 | Phase 1 | Pending |
-| STOR-03 | Phase 1 | Pending |
+| STOR-01 | Phase 1 | Complete (01-01) |
+| STOR-02 | Phase 1 | Complete (01-01) |
+| STOR-03 | Phase 1 | Complete (01-01) |
 | PWA-01 | Phase 3 | Pending |
 | PWA-02 | Phase 3 | Pending |
 | PWA-03 | Phase 3 | Pending |

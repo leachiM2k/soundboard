@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 4 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Scaffold Vite 7 + TypeScript project, idb-keyval storage layer, MIME type detection
+- [x] 01-01-PLAN.md — Scaffold Vite 7 + TypeScript project, idb-keyval storage layer, MIME type detection
 - [ ] 01-02-PLAN.md — Recorder module: getMicrophoneStream (lazy, cached) + startRecording (30s auto-stop, iOS guards)
 - [ ] 01-03-PLAN.md — Player module: AudioContext singleton, playBlob with AudioBuffer cache, stopTile
 - [ ] 01-04-PLAN.md — State machine + app bootstrap harness + iPhone Safari verification checkpoint
@@ -65,6 +65,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Audio and Storage Pipeline | 0/4 | Not started | - |
+| 1. Audio and Storage Pipeline | 1/4 | In progress | - |
 | 2. Tile UI and Interaction | 0/TBD | Not started | - |
 | 3. PWA Shell and Offline | 0/TBD | Not started | - |

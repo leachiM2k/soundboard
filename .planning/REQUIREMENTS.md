@@ -28,7 +28,7 @@ Requirements für den ersten Release. Jedes mapped auf eine Roadmap-Phase.
 ### Management
 
 - [x] **MGMT-01**: Langes Drücken auf eine Kachel mit Aufnahme öffnet ein Kontext-Menü
-- [ ] **MGMT-02**: Kontext-Menü bietet "Löschen" und "Neu aufnehmen" an
+- [x] **MGMT-02**: Kontext-Menü bietet "Löschen" und "Neu aufnehmen" an
 
 ### Storage
 
@@ -38,8 +38,8 @@ Requirements für den ersten Release. Jedes mapped auf eine Roadmap-Phase.
 
 ### PWA
 
-- [ ] **PWA-01**: App kann über Safari zum iPhone Home Screen hinzugefügt werden
-- [ ] **PWA-02**: App funktioniert offline nach der ersten Installation
+- [x] **PWA-01**: App kann über Safari zum iPhone Home Screen hinzugefügt werden
+- [x] **PWA-02**: App funktioniert offline nach der ersten Installation
 - [ ] **PWA-03**: App zeigt einmaligen Hinweis "Zum Home Screen hinzufügen" im Safari-Browser-Modus
 
 ## v2 Requirements
@@ -86,12 +86,12 @@ Welche Phasen welche Requirements abdecken.
 | REC-03 | Phase 2 | Complete |
 | REC-04 | Phase 1 | Complete |
 | MGMT-01 | Phase 2 | Complete |
-| MGMT-02 | Phase 2 | Pending |
+| MGMT-02 | Phase 2 | Complete |
 | STOR-01 | Phase 1 | Complete (01-01) |
 | STOR-02 | Phase 1 | Complete (01-01) |
 | STOR-03 | Phase 1 | Complete (01-01) |
-| PWA-01 | Phase 3 | Pending |
-| PWA-02 | Phase 3 | Pending |
+| PWA-01 | Phase 3 | Complete |
+| PWA-02 | Phase 3 | Complete |
 | PWA-03 | Phase 3 | Pending |
 
 **Coverage:**

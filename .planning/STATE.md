@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Ein Knopf drücken, ein Sound ertönt — sofort, zuverlässig, ohne Umwege.
-**Current focus:** Phase 2 — Tile UI and Interaction
+**Current focus:** Phase 3 — PWA Shell and Offline
 
 ## Current Position
 
-Phase: 2 of 3 (Tile UI and Interaction) — COMPLETE
-Plan: 4 of 4 in current phase (02-01, 02-02, 02-03, and 02-04 complete)
-Status: Phase 2 complete — all Phase 2 requirements verified on real iPhone Safari; ready for Phase 3 (PWA Shell and Offline)
-Last activity: 2026-02-22 — Plan 02-04 complete; all 9 iPhone Safari test cases passed in single verification pass
+Phase: 3 of 3 (PWA Shell and Offline) — IN PROGRESS
+Plan: 1 of 2 in current phase (03-01 complete)
+Status: Phase 3 Plan 1 complete — PWA manifest, service worker, icons, iOS meta tags all in place; ready for 03-02 (install prompt)
+Last activity: 2026-02-22 — Plan 03-01 complete; build produces sw.js, manifest.webmanifest, 13 precached entries
 
-Progress: [████████░░] 80% (Phase 1 done + Phase 2 done)
+Progress: [█████████░] 90% (Phase 1 done + Phase 2 done + Phase 3 Plan 1 done)
 
 ## Performance Metrics
 
@@ -39,6 +39,7 @@ Progress: [████████░░] 80% (Phase 1 done + Phase 2 done)
 | Phase 02-tile-ui-and-interaction P01 | 2 | 3 tasks | 4 files |
 | Phase 02-tile-ui-and-interaction P02 | 2 | 2 tasks | 4 files |
 | Phase 02-tile-ui-and-interaction P03 | 2 | 2 tasks | 5 files |
+| Phase 03-pwa-shell-and-offline P01 | 4 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,10 @@ Recent decisions affecting current work:
 - [02-03]: formatTimerDisplay inline in main.ts — timer display has different semantics from tile.ts formatDuration; kept local to avoid cross-concern import
 - [02-04]: All 9 iPhone Safari test cases passed in single verification pass — Phase 2 feature-complete with no inline fixes required
 - [02-04]: ngrok tunnel confirmed as correct HTTPS testing method for this project — avoids certificate warnings from self-signed certs
+- [03-01]: registerType autoUpdate chosen — silent background updates via Workbox skipWaiting/clientsClaim, no user prompt
+- [03-01]: navigateFallback set to offline.html not /index.html — uncached navigations get branded offline page, not broken app shell
+- [03-01]: ImageMagick used for SVG-to-PNG conversion — @vite-pwa/assets-generator CLI failed silently; ImageMagick available via Homebrew
+- [03-01]: theme_color #1a1a2e (dark navy), background_color #ff6b35 (orange) — navy matches app UI, orange matches icon background for splash
 
 ### Pending Todos
 
@@ -89,5 +94,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 02-04-PLAN.md — all 9 iPhone Safari test cases passed; Phase 2 fully verified on real device; Phase 3 (PWA Shell and Offline) ready to begin
+Stopped at: Completed 03-01-PLAN.md — PWA manifest, service worker, icons, iOS meta tags; build clean with 13 precached entries; 03-02 (install prompt) ready to begin
 Resume file: None

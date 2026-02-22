@@ -2,15 +2,38 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Soundboard</title>
+    <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <div id="app">
-      <p id="status">Soundboard — Phase 1 Test Harness</p>
-      <div id="tiles"></div>
-      <p id="error-hint" style="display:none;color:red;"></p>
+      <div id="grid"></div>
     </div>
+
+    <!-- Action sheet dialog (long-press context menu) -->
+    <dialog id="action-sheet" aria-modal="true">
+      <div class="action-sheet-content">
+        <p class="action-sheet-header" id="action-sheet-header"></p>
+        <button class="action-sheet-btn" id="btn-rerecord">Neu aufnehmen</button>
+        <button class="action-sheet-btn" id="btn-rename">Umbenennen</button>
+        <button class="action-sheet-btn destructive" id="btn-delete">Löschen</button>
+        <button class="action-sheet-btn cancel" id="btn-cancel">Abbrechen</button>
+      </div>
+    </dialog>
+
+    <!-- Rename dialog -->
+    <dialog id="rename-dialog" aria-modal="true">
+      <form method="dialog" id="rename-form">
+        <p class="rename-title">Kachel umbenennen</p>
+        <input type="text" id="rename-input" maxlength="30" placeholder="Name eingeben…" autocomplete="off" />
+        <div class="rename-actions">
+          <button type="button" id="rename-cancel">Abbrechen</button>
+          <button type="submit">Speichern</button>
+        </div>
+      </form>
+    </dialog>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

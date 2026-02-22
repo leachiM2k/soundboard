@@ -1,0 +1,302 @@
+/* ── Reset & Root ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --gap: 10px;
+  --radius: 16px;
+}
+
+body {
+  height: 100dvh;           /* dvh: dynamic viewport height — adjusts with iOS address bar */
+  overflow: hidden;
+  background: #111;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+}
+
+#app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;            /* CRITICAL: prevents flex child from overflowing */
+}
+
+/* ── Grid ─────────────────────────────────────────────────────── */
+#grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: var(--gap);
+  padding: var(--gap);
+  padding-bottom: calc(var(--gap) + var(--safe-bottom));
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Tile Base ─────────────────────────────────────────────────── */
+.tile {
+  position: relative;
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+  transition: transform 0.08s ease, filter 0.08s ease, opacity 0.08s ease;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tile:active {
+  transform: scale(0.93);
+}
+
+/* ── Tile States ───────────────────────────────────────────────── */
+.tile--empty {
+  background: #2a2a2e;
+  border: 1.5px dashed rgba(255, 255, 255, 0.18);
+}
+
+/* Filled — accent color applied via CSS custom property */
+.tile--has-sound {
+  background: var(--tile-color, #54a0ff);
+  border: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+.tile--playing {
+  background: var(--tile-color, #54a0ff);
+  border: none;
+  filter: brightness(1.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.tile--recording {
+  background: #1c1c1e;
+  border: 2px solid rgba(255, 59, 48, 0.9);
+  animation: tile-pulse 1.2s ease-in-out infinite;
+}
+
+.tile--saving {
+  background: #2a2a2e;
+  opacity: 0.55;
+  filter: brightness(0.75);
+}
+
+.tile--error {
+  background: #2c1a1a;
+  border: 1.5px solid rgba(255, 59, 48, 0.5);
+}
+
+/* ── Recording pulse animation ─────────────────────────────────── */
+@keyframes tile-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+  50%       { box-shadow: 0 0 0 14px rgba(255, 59, 48, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile--recording {
+    animation: none;
+    outline: 3px solid rgba(255, 59, 48, 0.9);
+  }
+}
+
+/* ── Tile Content ──────────────────────────────────────────────── */
+.tile-icon {
+  font-size: 28px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.tile-icon--saving {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 3px;
+}
+
+.tile-icon--error {
+  font-size: 22px;
+  color: rgba(255, 59, 48, 0.9);
+}
+
+.tile-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+  text-align: center;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  line-height: 1.2;
+}
+
+.tile-duration {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.6);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.tile-elapsed {
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(255, 59, 48, 0.9);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.tile-remaining {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* ── Action Sheet Dialog ───────────────────────────────────────── */
+#action-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  top: auto;
+  margin: 0;
+  max-width: 100%;
+  width: 100%;
+  border: none;
+  border-radius: 14px 14px 0 0;
+  background: #1c1c1e;
+  padding: 0;
+  padding-bottom: var(--safe-bottom);
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#action-sheet[open] {
+  transform: translateY(0);
+}
+
+#action-sheet::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.action-sheet-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.action-sheet-header {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+  padding: 14px 16px 10px;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.12);
+}
+
+.action-sheet-btn {
+  display: block;
+  width: 100%;
+  padding: 17px 16px;
+  font-size: 17px;
+  font-family: inherit;
+  border: none;
+  border-top: 0.5px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: #fff;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.action-sheet-btn:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.action-sheet-btn.destructive {
+  color: #ff453a;
+}
+
+.action-sheet-btn.cancel {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 15px;
+  padding: 14px 16px;
+}
+
+/* ── Rename Dialog ─────────────────────────────────────────────── */
+#rename-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  width: min(320px, 90vw);
+  border: none;
+  border-radius: 14px;
+  background: #2c2c2e;
+  padding: 20px;
+}
+
+#rename-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.rename-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+#rename-input {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 16px;
+  font-family: inherit;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #3a3a3c;
+  color: #fff;
+  outline: none;
+  margin-bottom: 14px;
+  /* Do NOT set user-select: none here — input must be editable */
+}
+
+#rename-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.rename-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.rename-actions button {
+  flex: 1;
+  padding: 11px 10px;
+  font-size: 16px;
+  font-family: inherit;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rename-actions button[type="button"] {
+  background: #3a3a3c;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.rename-actions button[type="submit"] {
+  background: #0a84ff;
+  color: #fff;
+  font-weight: 600;
+}

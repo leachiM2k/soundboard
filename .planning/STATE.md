@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 1 of 3 (Audio and Storage Pipeline)
-Plan: 3 of 4 in current phase
+Plan: 4 of 4 in current phase (at checkpoint — iPhone verification pending)
 Status: In progress
-Last activity: 2026-02-22 — Completed 01-03: audio player module (player.ts)
+Last activity: 2026-02-22 — Tasks 1&2 of 01-04 complete; awaiting iPhone Safari verification at Task 3
 
-Progress: [███░░░░░░░] 25%
+Progress: [████░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -53,6 +53,9 @@ Recent decisions affecting current work:
 - [01-03]: AudioBuffer cached per tile after first decode — balances startup speed and repeat-play latency; cleared on recording delete/replace
 - [01-03]: decodeAudioData failure propagates to caller — defective blobs NOT deleted from storage
 - [01-03]: statechange handler is intentional no-op — auto-resuming on interruption is anti-pattern on iOS Safari; resume() only inside user gesture
+- [01-04]: transitionTile() mutates AppState in place — simpler than immutable for fixed 9-slot array
+- [01-04]: Error retry (no-record) immediately calls handleTileTap(index) on same tap — no second tap required
+- [01-04]: Defective blob error (has-record tile) is no-op in Phase 1 — Phase 2 long-press adds re-record
 
 ### Pending Todos
 
@@ -66,5 +69,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 01-03-PLAN.md — player.ts with AudioContext singleton and per-tile playback committed
+Stopped at: Checkpoint at Task 3 of 01-04-PLAN.md — store.ts + main.ts complete; awaiting iPhone Safari verification
 Resume file: None

@@ -46,7 +46,13 @@ Plans:
   3. An actively recording tile shows a pulsing visual indicator while the mic is live
   4. Long-pressing a filled tile opens a context menu offering Delete and Re-record
   5. Tapping any tile produces a brief haptic vibration on supported devices
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Data type extensions (label field) + long-press detector + haptic utility
+- [ ] 02-02-PLAN.md — HTML/CSS grid layout + tile visual states + tile.ts/grid.ts UI modules
+- [ ] 02-03-PLAN.md — Action sheet + rename dialog + main.ts full wiring
+- [ ] 02-04-PLAN.md — iPhone Safari verification checkpoint (9 tests)
 
 ### Phase 3: PWA Shell and Offline
 **Goal**: Users can install the app to their iPhone Home Screen and use it offline

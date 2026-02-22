@@ -5,36 +5,38 @@
 See: .planning/PROJECT.md (updated 2026-02-22)
 
 **Core value:** Ein Knopf drücken, ein Sound ertönt — sofort, zuverlässig, ohne Umwege.
-**Current focus:** Phase 1 — Audio and Storage Pipeline
+**Current focus:** Phase 2 — Tile UI and Interaction
 
 ## Current Position
 
-Phase: 1 of 3 (Audio and Storage Pipeline) — COMPLETE
-Plan: 4 of 4 in current phase (all plans complete)
-Status: Phase 1 complete — ready for Phase 2 (UI)
-Last activity: 2026-02-22 — Plan 01-04 complete; all 7 iPhone Safari tests passed and approved
+Phase: 2 of 3 (Tile UI and Interaction) — IN PROGRESS
+Plan: 1 of 4 in current phase (02-01 complete)
+Status: Plan 02-01 complete — data types and input primitives ready; Plans 02-02 and 02-03 can now proceed
+Last activity: 2026-02-22 — Plan 02-01 complete; label fields + long-press + haptic utilities built
 
-Progress: [███░░░░░░░] 33% (Phase 1 of 3 done)
+Progress: [████░░░░░░] 44% (Phase 1 done + Plan 02-01 done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
+- Total plans completed: 5
 - Average duration: ~4 minutes
-- Total execution time: 0.2 hours
+- Total execution time: ~0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Audio and Storage Pipeline | 4/4 | ~27 min | ~7 min |
+| 2. Tile UI and Interaction | 1/4 | ~2 min | ~2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (~7 min), 01-02 (~1 min), 01-03 (~1 min), 01-04 (~15 min including iPhone verification)
+- Last 5 plans: 01-01 (~7 min), 01-02 (~1 min), 01-03 (~1 min), 01-04 (~15 min including iPhone verification), 02-01 (~2 min)
 - Trend: Stable; device verification adds real-world overhead
 
 *Updated after each plan completion*
 | Phase 01-audio-and-storage-pipeline P04 | 15 | 3 tasks | 4 files |
+| Phase 02-tile-ui-and-interaction P01 | 2 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -59,6 +61,9 @@ Recent decisions affecting current work:
 - [01-04]: Defective blob error (has-record tile) is no-op in Phase 1 — Phase 2 long-press adds re-record
 - [01-04]: HTTPS required for getUserMedia on iOS — @vitejs/plugin-basic-ssl enables self-signed cert; must be accepted once in Safari before testing
 - [Phase 01-audio-and-storage-pipeline]: HTTPS required for iOS getUserMedia: @vitejs/plugin-basic-ssl added; self-signed cert accepted once in Safari
+- [02-01]: touchend must NOT be passive — needs preventDefault() to suppress iOS synthetic click after long-press fires
+- [02-01]: navigator.vibrate optional chaining compiles cleanly against DOM lib — no type cast needed
+- [02-01]: label field optional with undefined semantics — avoids any IndexedDB migration for existing records
 
 ### Pending Todos
 
@@ -66,10 +71,10 @@ None.
 
 ### Blockers/Concerns
 
-None. Phase 1 complete and verified on real device.
+None.
 
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 01-04-PLAN.md — Phase 1 fully done; ready for Phase 2 (UI)
+Stopped at: Completed 02-01-PLAN.md — label fields + long-press + haptic primitives done; Plans 02-02 and 02-03 ready to execute
 Resume file: None

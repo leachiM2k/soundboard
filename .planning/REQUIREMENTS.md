@@ -16,7 +16,7 @@ Requirements für den ersten Release. Jedes mapped auf eine Roadmap-Phase.
 
 - [x] **PLAY-01**: User kann einen aufgenommenen Sound durch Antippen der Kachel abspielen
 - [x] **PLAY-02**: Nochmaliges Antippen einer aktiv spielenden Kachel stoppt den Sound und startet ihn neu
-- [ ] **PLAY-03**: Gerät gibt beim Antippen einer Kachel ein kurzes haptisches Feedback
+- [x] **PLAY-03**: Gerät gibt beim Antippen einer Kachel ein kurzes haptisches Feedback
 
 ### Recording
 
@@ -27,7 +27,7 @@ Requirements für den ersten Release. Jedes mapped auf eine Roadmap-Phase.
 
 ### Management
 
-- [ ] **MGMT-01**: Langes Drücken auf eine Kachel mit Aufnahme öffnet ein Kontext-Menü
+- [x] **MGMT-01**: Langes Drücken auf eine Kachel mit Aufnahme öffnet ein Kontext-Menü
 - [ ] **MGMT-02**: Kontext-Menü bietet "Löschen" und "Neu aufnehmen" an
 
 ### Storage
@@ -80,12 +80,12 @@ Welche Phasen welche Requirements abdecken.
 | GRID-02 | Phase 2 | Pending |
 | PLAY-01 | Phase 1 | Complete (01-03) |
 | PLAY-02 | Phase 1 | Complete (01-03) |
-| PLAY-03 | Phase 2 | Pending |
+| PLAY-03 | Phase 2 | Complete |
 | REC-01 | Phase 1 | Complete |
 | REC-02 | Phase 1 | Complete |
 | REC-03 | Phase 2 | Pending |
 | REC-04 | Phase 1 | Complete |
-| MGMT-01 | Phase 2 | Pending |
+| MGMT-01 | Phase 2 | Complete |
 | MGMT-02 | Phase 2 | Pending |
 | STOR-01 | Phase 1 | Complete (01-01) |
 | STOR-02 | Phase 1 | Complete (01-01) |

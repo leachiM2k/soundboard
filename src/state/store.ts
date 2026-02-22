@@ -16,6 +16,8 @@ export interface TileData {
   errorMessage?: string;
   /** Whether this slot was at 'recording' state when the 25s warning fired */
   warningActive?: boolean;
+  /** User-set tile name, synced from SlotRecord.label. */
+  label?: string;
 }
 
 export interface AppState {
@@ -66,10 +68,12 @@ export function transitionTile(
     next.warningActive = false;
   } else if (newState === 'has-sound' || newState === 'playing') {
     next.record = data.record ?? tile.record;
+    next.label = data.label ?? tile.label;
   } else if (newState === 'error') {
     next.errorMessage = data.errorMessage;
     // Preserve record for 'error' on defective blob (tile stays has-sound conceptually)
     next.record = data.record ?? tile.record;
+    next.label = data.label ?? tile.label;
   }
 
   appState.tiles[index] = next;

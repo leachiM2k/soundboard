@@ -8,6 +8,8 @@ export interface SlotRecord {
   blob: Blob;        // Raw audio blob from MediaRecorder
   mimeType: string;  // Detected at recording time; required for correct playback
   recordedAt: number; // Date.now() at recording completion
+  /** User-customizable tile name. undefined = no label set. */
+  label?: string;
 }
 
 // SlotIndex is 0-8, mapping directly to tile positions in the 3x3 grid.

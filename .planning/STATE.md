@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 2 of 3 (Tile UI and Interaction) — IN PROGRESS
-Plan: 3 of 4 in current phase (02-01, 02-02, and 02-03 complete)
-Status: Plan 02-03 complete — action sheet, rename dialog, and full main.ts wired; feature-complete Phase 2 app; Plan 02-04 (iPhone Safari verification) ready to proceed
-Last activity: 2026-02-22 — Plan 02-03 complete; showActionSheet, showRenameDialog, durationSeconds, recording timer, long-press management all built
+Phase: 2 of 3 (Tile UI and Interaction) — COMPLETE
+Plan: 4 of 4 in current phase (02-01, 02-02, 02-03, and 02-04 complete)
+Status: Phase 2 complete — all Phase 2 requirements verified on real iPhone Safari; ready for Phase 3 (PWA Shell and Offline)
+Last activity: 2026-02-22 — Plan 02-04 complete; all 9 iPhone Safari test cases passed in single verification pass
 
-Progress: [██████░░░░] 65% (Phase 1 done + Plans 02-01, 02-02, and 02-03 done)
+Progress: [████████░░] 80% (Phase 1 done + Phase 2 done)
 
 ## Performance Metrics
 
@@ -75,6 +75,8 @@ Recent decisions affecting current work:
 - [02-03]: requestAnimationFrame focus delay in rename dialog — iOS Safari keyboard won't appear if input.focus() fires synchronously during showModal()
 - [02-03]: triggerHaptic() before any await in handleTileTap — iOS user-gesture context lost after first await; haptic must fire synchronously
 - [02-03]: formatTimerDisplay inline in main.ts — timer display has different semantics from tile.ts formatDuration; kept local to avoid cross-concern import
+- [02-04]: All 9 iPhone Safari test cases passed in single verification pass — Phase 2 feature-complete with no inline fixes required
+- [02-04]: ngrok tunnel confirmed as correct HTTPS testing method for this project — avoids certificate warnings from self-signed certs
 
 ### Pending Todos
 
@@ -87,5 +89,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 02-03-PLAN.md — action sheet, rename dialog, full main.ts wired; feature-complete Phase 2 app; Plan 02-04 (iPhone Safari verification) ready to execute
+Stopped at: Completed 02-04-PLAN.md — all 9 iPhone Safari test cases passed; Phase 2 fully verified on real device; Phase 3 (PWA Shell and Offline) ready to begin
 Resume file: None

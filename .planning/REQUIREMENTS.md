@@ -40,7 +40,7 @@ Requirements für den ersten Release. Jedes mapped auf eine Roadmap-Phase.
 
 - [x] **PWA-01**: App kann über Safari zum iPhone Home Screen hinzugefügt werden
 - [x] **PWA-02**: App funktioniert offline nach der ersten Installation
-- [ ] **PWA-03**: App zeigt einmaligen Hinweis "Zum Home Screen hinzufügen" im Safari-Browser-Modus
+- [x] **PWA-03**: App zeigt einmaligen Hinweis "Zum Home Screen hinzufügen" im Safari-Browser-Modus
 
 ## v2 Requirements
 
@@ -92,7 +92,7 @@ Welche Phasen welche Requirements abdecken.
 | STOR-03 | Phase 1 | Complete (01-01) |
 | PWA-01 | Phase 3 | Complete |
 | PWA-02 | Phase 3 | Complete |
-| PWA-03 | Phase 3 | Pending |
+| PWA-03 | Phase 3 | Complete (03-02) |
 
 **Coverage:**
 - v1 requirements: 17 total

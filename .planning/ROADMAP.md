@@ -66,7 +66,7 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md — Install vite-plugin-pwa, generate icons, configure manifest + SW, offline.html, iOS meta tags
-- [ ] 03-02-PLAN.md — Install banner (once-per-day, post-first-tap, not in standalone) + wake lock during recording
+- [x] 03-02-PLAN.md — Install banner (once-per-day, post-first-tap, not in standalone) + wake lock during recording
 - [ ] 03-03-PLAN.md — iPhone Safari verification checkpoint (4 tests: install, offline, banner, wake lock)
 
 ## Progress
@@ -78,4 +78,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Audio and Storage Pipeline | 4/4 | Complete    | 2026-02-22 |
 | 2. Tile UI and Interaction | 4/4 | Complete    | 2026-02-22 |
-| 3. PWA Shell and Offline | 1/3 | In progress | - |
+| 3. PWA Shell and Offline | 2/3 | In progress | - |

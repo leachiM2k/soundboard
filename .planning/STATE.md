@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 
 ## Current Position
 
-Phase: 3 of 3 (PWA Shell and Offline) — IN PROGRESS
-Plan: 1 of 2 in current phase (03-01 complete)
-Status: Phase 3 Plan 1 complete — PWA manifest, service worker, icons, iOS meta tags all in place; ready for 03-02 (install prompt)
-Last activity: 2026-02-22 — Plan 03-01 complete; build produces sw.js, manifest.webmanifest, 13 precached entries
+Phase: 3 of 3 (PWA Shell and Offline) — COMPLETE
+Plan: 2 of 2 in current phase (03-02 complete)
+Status: Phase 3 complete — PWA manifest, service worker, iOS install banner, wake lock all in place; project feature-complete
+Last activity: 2026-02-22 — Plan 03-02 complete; install banner and wake lock wired; build clean with 18 modules
 
-Progress: [█████████░] 90% (Phase 1 done + Phase 2 done + Phase 3 Plan 1 done)
+Progress: [██████████] 100% (Phase 1 done + Phase 2 done + Phase 3 done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
+- Total plans completed: 6
 - Average duration: ~4 minutes
 - Total execution time: ~0.2 hours
 
@@ -29,6 +29,7 @@ Progress: [█████████░] 90% (Phase 1 done + Phase 2 done + Ph
 |-------|-------|-------|----------|
 | 1. Audio and Storage Pipeline | 4/4 | ~27 min | ~7 min |
 | 2. Tile UI and Interaction | 2/4 | ~4 min | ~2 min |
+| 3. PWA Shell and Offline | 2/2 | ~6 min | ~3 min |
 
 **Recent Trend:**
 - Last 5 plans: 01-01 (~7 min), 01-02 (~1 min), 01-03 (~1 min), 01-04 (~15 min including iPhone verification), 02-01 (~2 min)
@@ -40,6 +41,7 @@ Progress: [█████████░] 90% (Phase 1 done + Phase 2 done + Ph
 | Phase 02-tile-ui-and-interaction P02 | 2 | 2 tasks | 4 files |
 | Phase 02-tile-ui-and-interaction P03 | 2 | 2 tasks | 5 files |
 | Phase 03-pwa-shell-and-offline P01 | 4 | 2 tasks | 7 files |
+| Phase 03-pwa-shell-and-offline P02 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -82,6 +84,9 @@ Recent decisions affecting current work:
 - [03-01]: navigateFallback set to offline.html not /index.html — uncached navigations get branded offline page, not broken app shell
 - [03-01]: ImageMagick used for SVG-to-PNG conversion — @vite-pwa/assets-generator CLI failed silently; ImageMagick available via Homebrew
 - [03-01]: theme_color #1a1a2e (dark navy), background_color #ff6b35 (orange) — navy matches app UI, orange matches icon background for splash
+- [03-02]: triggerInstallBannerOnce() placed after triggerHaptic() but before any await — preserves iOS user gesture context while satisfying first-interaction requirement
+- [03-02]: releaseWakeLock() called in both onComplete and manual-stop recording case — ensures wake lock is released regardless of how recording ends
+- [03-02]: void operator used for fire-and-forget async wake lock calls — satisfies TypeScript no-floating-promises without blocking recording flow
 
 ### Pending Todos
 
@@ -94,5 +99,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 03-01-PLAN.md — PWA manifest, service worker, icons, iOS meta tags; build clean with 13 precached entries; 03-02 (install prompt) ready to begin
+Stopped at: Completed 03-02-PLAN.md — install banner and wake lock; project feature-complete; all 3 phases done
 Resume file: None

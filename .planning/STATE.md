@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 Phase: 1 of 3 (Audio and Storage Pipeline)
 Plan: 4 of 4 in current phase (at checkpoint — iPhone verification pending)
 Status: In progress
-Last activity: 2026-02-22 — Tasks 1&2 of 01-04 complete; awaiting iPhone Safari verification at Task 3
+Last activity: 2026-02-22 — HTTPS fix applied (dabb595); dev server now serves https://; awaiting iPhone Safari re-verification at Task 3
 
 Progress: [████░░░░░░] 33%
 
@@ -56,6 +56,7 @@ Recent decisions affecting current work:
 - [01-04]: transitionTile() mutates AppState in place — simpler than immutable for fixed 9-slot array
 - [01-04]: Error retry (no-record) immediately calls handleTileTap(index) on same tap — no second tap required
 - [01-04]: Defective blob error (has-record tile) is no-op in Phase 1 — Phase 2 long-press adds re-record
+- [01-04]: HTTPS required for getUserMedia on iOS — @vitejs/plugin-basic-ssl enables self-signed cert; must be accepted once in Safari before testing
 
 ### Pending Todos
 
@@ -69,5 +70,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Checkpoint at Task 3 of 01-04-PLAN.md — store.ts + main.ts complete; awaiting iPhone Safari verification
+Stopped at: Checkpoint at Task 3 of 01-04-PLAN.md — HTTPS fix applied; awaiting iPhone Safari re-verification (accept certificate, then run 7 tests)
 Resume file: None

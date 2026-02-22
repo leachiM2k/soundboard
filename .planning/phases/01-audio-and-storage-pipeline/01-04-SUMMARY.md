@@ -40,6 +40,8 @@ key-files:
     - src/state/store.ts
   modified:
     - src/main.ts
+    - vite.config.ts
+    - package.json
 
 key-decisions:
   - "transitionTile() mutates AppState in place — simpler than immutable updates for 9-slot fixed-size array"
@@ -126,7 +128,11 @@ Each task was committed atomically:
 
 ## iPhone Safari Verification — Task 3 Results
 
-**Status: PENDING — awaiting human verification on real iPhone**
+**Status: RE-TEST REQUIRED — HTTPS fix applied; awaiting human re-verification**
+
+First test attempt failed: tapping a tile showed "Slot 0: error Mikrofon nicht verfügbar". Root cause: iOS Safari enforces secure context for `getUserMedia`. Serving over `http://192.168.x.x:5173` (HTTP on a LAN IP) is not a secure context — Safari refuses microphone access with `NotAllowedError`.
+
+Fix applied: installed `@vitejs/plugin-basic-ssl` and configured Vite to serve HTTPS with a self-signed certificate. The dev server URL is now `https://192.168.x.x:5173`. The user must accept the self-signed certificate warning in Safari once before testing.
 
 See checkpoint message for 7-test protocol.
 
@@ -140,7 +146,17 @@ See checkpoint message for 7-test protocol.
 
 ## Deviations from Plan
 
-None - plan executed exactly as written. The `saveSlot` call in `onComplete` required constructing the `SlotRecord` inline; `recordedAt` uses `Date.now()` at save time (not recording start time) which matches the plan's intent.
+### Auto-fixed Issues
+
+**1. [Rule 1 - Bug] HTTPS required for getUserMedia on iOS Safari**
+
+- **Found during:** Task 3 (iPhone Safari verification, first attempt)
+- **Issue:** iOS Safari rejected `getUserMedia` with a NotAllowedError because the dev server was served over HTTP on a LAN IP (`http://192.168.x.x:5173`). iOS enforces a strict secure context requirement — only `localhost` or HTTPS origins are allowed.
+- **Fix:** Installed `@vitejs/plugin-basic-ssl` (dev dep) and updated `vite.config.ts` with `basicSsl()` plugin + `server: { https: true }`. The dev server now serves HTTPS with a self-signed certificate.
+- **Files modified:** `vite.config.ts`, `package.json`, `package-lock.json`
+- **Commit:** `dabb595`
+
+The `saveSlot` call in `onComplete` required constructing the `SlotRecord` inline; `recordedAt` uses `Date.now()` at save time (not recording start time) which matches the plan's intent.
 
 ## Issues Encountered
 

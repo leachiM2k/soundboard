@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Audio and Storage Pipeline** - Record, store, and play audio with correct iOS Safari behavior (completed 2026-02-22)
 - [x] **Phase 2: Tile UI and Interaction** - 3x3 grid with tap, long-press, visual states, and haptic feedback (completed 2026-02-22)
-- [ ] **Phase 3: PWA Shell and Offline** - Service worker, manifest, home screen install, offline capability
+- [x] **Phase 3: PWA Shell and Offline** - Service worker, manifest, home screen install, offline capability (completed 2026-02-22)
 
 ## Phase Details
 
@@ -67,7 +67,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md — Install vite-plugin-pwa, generate icons, configure manifest + SW, offline.html, iOS meta tags
 - [x] 03-02-PLAN.md — Install banner (once-per-day, post-first-tap, not in standalone) + wake lock during recording
-- [ ] 03-03-PLAN.md — iPhone Safari verification checkpoint (4 tests: install, offline, banner, wake lock)
+- [x] 03-03-PLAN.md — iPhone Safari verification checkpoint (4 tests: install, offline, banner, wake lock)
 
 ## Progress
 
@@ -78,4 +78,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Audio and Storage Pipeline | 4/4 | Complete    | 2026-02-22 |
 | 2. Tile UI and Interaction | 4/4 | Complete    | 2026-02-22 |
-| 3. PWA Shell and Offline | 2/3 | In progress | - |
+| 3. PWA Shell and Offline | 3/3 | Complete    | 2026-02-22 |

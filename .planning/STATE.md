@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-22)
 ## Current Position
 
 Phase: 3 of 3 (PWA Shell and Offline) — COMPLETE
-Plan: 2 of 2 in current phase (03-02 complete)
-Status: Phase 3 complete — PWA manifest, service worker, iOS install banner, wake lock all in place; project feature-complete
-Last activity: 2026-02-22 — Plan 03-02 complete; install banner and wake lock wired; build clean with 18 modules
+Plan: 3 of 3 in current phase (03-03 complete)
+Status: Project complete — all 3 phases done; iPhone Safari verification passed for all PWA requirements
+Last activity: 2026-02-22 — Plan 03-03 complete; iPhone Safari verification passed; all PWA requirements confirmed
 
 Progress: [██████████] 100% (Phase 1 done + Phase 2 done + Phase 3 done)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: ~4 minutes
 - Total execution time: ~0.2 hours
 
@@ -29,7 +29,7 @@ Progress: [██████████] 100% (Phase 1 done + Phase 2 done + P
 |-------|-------|-------|----------|
 | 1. Audio and Storage Pipeline | 4/4 | ~27 min | ~7 min |
 | 2. Tile UI and Interaction | 2/4 | ~4 min | ~2 min |
-| 3. PWA Shell and Offline | 2/2 | ~6 min | ~3 min |
+| 3. PWA Shell and Offline | 3/3 | ~6 min + verification | ~3 min |
 
 **Recent Trend:**
 - Last 5 plans: 01-01 (~7 min), 01-02 (~1 min), 01-03 (~1 min), 01-04 (~15 min including iPhone verification), 02-01 (~2 min)
@@ -42,6 +42,7 @@ Progress: [██████████] 100% (Phase 1 done + Phase 2 done + P
 | Phase 02-tile-ui-and-interaction P03 | 2 | 2 tasks | 5 files |
 | Phase 03-pwa-shell-and-offline P01 | 4 | 2 tasks | 7 files |
 | Phase 03-pwa-shell-and-offline P02 | 2 | 2 tasks | 4 files |
+| Phase 03-pwa-shell-and-offline P03 | checkpoint | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,8 @@ Recent decisions affecting current work:
 - [03-02]: triggerInstallBannerOnce() placed after triggerHaptic() but before any await — preserves iOS user gesture context while satisfying first-interaction requirement
 - [03-02]: releaseWakeLock() called in both onComplete and manual-stop recording case — ensures wake lock is released regardless of how recording ends
 - [03-02]: void operator used for fire-and-forget async wake lock calls — satisfies TypeScript no-floating-promises without blocking recording flow
+- [03-03]: All four iPhone verification tests passed in single pass — standalone install, offline cache, install banner, and wake lock all confirmed on real iPhone Safari
+- [03-03]: ngrok to production build (npm run build && npx serve dist) is required for offline/service-worker testing — dev server does not activate service worker
 
 ### Pending Todos
 
@@ -99,5 +102,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 03-02-PLAN.md — install banner and wake lock; project feature-complete; all 3 phases done
+Stopped at: Completed 03-03-PLAN.md — iPhone Safari verification; all PWA requirements confirmed; project complete
 Resume file: None

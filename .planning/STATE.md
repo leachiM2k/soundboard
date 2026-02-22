@@ -2,19 +2,18 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-22)
+See: .planning/PROJECT.md (updated 2026-02-22 after v1.0 milestone)
 
 **Core value:** Ein Knopf drücken, ein Sound ertönt — sofort, zuverlässig, ohne Umwege.
-**Current focus:** Phase 3 — PWA Shell and Offline
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 3 of 3 (PWA Shell and Offline) — COMPLETE
-Plan: 3 of 3 in current phase (03-03 complete)
-Status: Project complete — all 3 phases done; iPhone Safari verification passed for all PWA requirements
-Last activity: 2026-02-22 — Plan 03-03 complete; iPhone Safari verification passed; all PWA requirements confirmed
+Milestone: v1.0 — COMPLETE (shipped 2026-02-22)
+Status: All 3 phases complete, all 17 requirements verified on real iPhone, milestone archived and tagged
+Last activity: 2026-02-22 — v1.0 milestone complete
 
-Progress: [██████████] 100% (Phase 1 done + Phase 2 done + Phase 3 done)
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -102,5 +101,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 03-03-PLAN.md — iPhone Safari verification; all PWA requirements confirmed; project complete
-Resume file: None
+Stopped at: v1.0 milestone complete — archived, tagged, all decisions in PROJECT.md
+Resume with: `/gsd:new-milestone`

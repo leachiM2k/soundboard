@@ -2,7 +2,9 @@
 
 ## What This Is
 
-Eine Progressive Web App (PWA) für das iPhone, die als Soundboard mit 9 fixen Kacheln fungiert. Jede Kachel kann einen selbst aufgenommenen Sound speichern und per Tipp abspielen. Die App läuft direkt im Browser und kann zum Home Screen hinzugefügt werden — kein App Store nötig.
+Eine Progressive Web App (PWA) für das iPhone, die als Soundboard mit 9 fixen Kacheln fungiert. Jede Kachel speichert einen selbst aufgenommenen Sound und spielt ihn per Tipp ab. Die App läuft direkt im Safari-Browser, kann zum Home Screen hinzugefügt werden, und funktioniert vollständig offline — kein App Store, kein Backend, keine Cloud.
+
+**Current state (v1.0):** Vollständig ausgeliefert und auf echtem iPhone verifiziert. Alle 17 v1-Requirements erfüllt.
 
 ## Core Value
 
@@ -10,21 +12,29 @@ Ein Knopf drücken, ein Sound ertönt — sofort, zuverlässig, ohne Umwege.
 
 ## Requirements
 
-### Validated
+### Validated (v1.0)
 
-(None yet — ship to validate)
+- ✓ 9 fixe Kacheln auf einem Screen, kein Scrolling — v1.0 (GRID-01)
+- ✓ Leere vs. belegte Kacheln visuell unterscheidbar — v1.0 (GRID-02)
+- ✓ Sound abspielen per Tipp; Re-Tap stoppt und startet neu — v1.0 (PLAY-01, PLAY-02)
+- ✓ Haptisches Feedback beim Antippen — v1.0 (PLAY-03)
+- ✓ Leere Kachel antippen startet Aufnahme; nochmal stoppen und speichern — v1.0 (REC-01, REC-02)
+- ✓ Pulsierender Indikator während Aufnahme — v1.0 (REC-03)
+- ✓ Mikrofon-Berechtigung beim ersten Aufnahmeversuch, nicht beim App-Start — v1.0 (REC-04)
+- ✓ Langer Druck öffnet Kontext-Menü (Delete / Re-record / Rename) — v1.0 (MGMT-01, MGMT-02)
+- ✓ Sounds lokal in IndexedDB gespeichert, kein Server — v1.0 (STOR-01)
+- ✓ Sounds überleben App-Neustart an ihrer Kacheln-Position — v1.0 (STOR-02)
+- ✓ navigator.storage.persist() aufgerufen — v1.0 (STOR-03)
+- ✓ App zum iPhone Home Screen hinzufügbar (standalone mode) — v1.0 (PWA-01)
+- ✓ App funktioniert offline nach erster Installation — v1.0 (PWA-02)
+- ✓ Einmaliger "Zum Home Screen" Hinweis im Safari-Browser-Modus — v1.0 (PWA-03)
 
-### Active
+### Active (v1.1 candidates)
 
-- [ ] 9 fixe runde Kacheln auf einem Screen, kein Scrolling
-- [ ] Kachel mit Sound: Antippen spielt den Sound ab
-- [ ] Kachel ohne Sound: Antippen startet Aufnahme → nochmal antippen stoppt und speichert
-- [ ] Visuell unterscheidbar: leere vs. belegte Kacheln
-- [ ] Langer Druck auf belegte Kachel → Optionen (Löschen / Neu aufnehmen)
-- [ ] Sounds werden lokal gespeichert (IndexedDB), platzsparend (komprimiertes Audio)
-- [ ] Sounds bleiben nach App-Neustart erhalten
-- [ ] PWA: kann zum iPhone Home Screen hinzugefügt werden
-- [ ] Mikrofon-Zugriff wird beim ersten Mal angefragt
+- [ ] Echtzeit-Wellenform-Visualisierung während Aufnahme (UX-01)
+- [ ] Bestätigungs-Dialog beim Löschen (UX-02)
+- [ ] Vorgeladener AudioBuffer-Cache beim App-Start für Null-Latenz (UX-03)
+- [ ] Graceful handling des getUserMedia Re-Permission-Bugs (WebKit #215884) in Standalone-Mode (RES-01)
 
 ### Out of Scope
 
@@ -32,31 +42,40 @@ Ein Knopf drücken, ein Sound ertönt — sofort, zuverlässig, ohne Umwege.
 - Mehr als 9 Kacheln / Scrolling — bewusst einfach gehalten
 - Cloud-Sync oder Sharing — lokal only
 - Import von Audio-Dateien — nur Aufnahme via Mikrofon
-- App Store Veröffentlichung
+- App Store Veröffentlichung — PWA reicht für persönlichen Gebrauch
+- Per-Kachel-Lautstärke — kein Mixer-UI geplant
 
 ## Context
 
-- Plattform: PWA (Safari auf iOS 14.3+, wo MediaRecorder API verfügbar ist)
-- Audio-Aufnahme: MediaRecorder API mit komprimiertem Format (AAC/Opus)
-- Speicher: IndexedDB für Blob-Speicherung der Audio-Daten
-- UX-Entscheidungen: Langer Druck für Kontext-Menü (iOS-natives Pattern), Tap-to-start/stop Aufnahme
-- Zielgerät: iPhone (primär), funktioniert aber auf allen modernen Mobilgeräten
+- **Tech stack:** Vanilla TypeScript 5.8.3, Vite 7.3.1, idb-keyval 6.2.2, vite-plugin-pwa 1.2.0 (Workbox)
+- **Audio:** MediaRecorder API (AAC auf iOS, Opus/WebM auf anderen) → IndexedDB Blob → Web Audio API (AudioContext + AudioBufferSourceNode)
+- **PWA:** Workbox service worker mit 13 precached Assets; autoUpdate; navigateFallback offline.html
+- **iPhone testing:** ngrok HTTPS-Tunnel (empfohlen) — vermeidet Safari-Zertifikatswarnungen
+- **Codebase:** ~1,250 LOC TypeScript, 65 Dateien, keine externen Framework-Abhängigkeiten
 
 ## Constraints
 
-- **Plattform**: PWA / Web-Technologien — kein nativer Swift-Code, kein App Store
-- **iOS-Kompatibilität**: Safari auf iOS 14.3+ (MediaRecorder-Unterstützung)
-- **Speicher**: Lokal via IndexedDB, keine Backend-Infrastruktur nötig
-- **Screen**: Alles auf einem einzigen Screen, keine Navigation
+- **Plattform:** PWA / Web — kein nativer Swift-Code, kein App Store
+- **iOS-Kompatibilität:** Safari auf iOS 14.3+ (MediaRecorder-Unterstützung)
+- **Speicher:** Lokal via IndexedDB, keine Backend-Infrastruktur
+- **Screen:** Alles auf einem einzigen Screen, keine Navigation
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
-|----------|-----------|---------||
-| PWA statt Native App | Kein App Store nötig, einfacherer Build, sofort testbar | — Pending |
-| Langer Druck für Delete/Re-Record | iOS-natives Pattern, hält den Hauptflow sauber | — Pending |
-| Tap-to-start/stop Aufnahme | Einfacher als Halten (kein versehentliches Abbrechen bei langen Sounds) | — Pending |
-| Keine Labels | Reduziert Komplexität, User findet sich per Position zurecht | — Pending |
+|----------|-----------|---------|
+| Web Audio API über HTMLAudioElement | 300-500ms iOS-Latenz mit HTMLAudioElement nicht akzeptabel | ✓ Gut — keine Latenzprobleme |
+| Audio-Pipeline vor UI bauen | iOS Safari AudioContext/MediaRecorder-Pitfalls haben hohe Recovery-Cost | ✓ Gut — kein Rework nötig |
+| MIME-Probe: webm/opus > webm > mp4 > ogg/opus | Deckt alle Browser ab; iOS Safari mp4-Fallback korrekt | ✓ Gut — auf allen Geräten funktionsfähig |
+| AudioBuffer gecacht pro Kachel | Balance zwischen Startup-Geschwindigkeit und Wiederhol-Latenz | ✓ Gut — keine wahrnehmbare Latenz |
+| touchend nicht passive | Braucht preventDefault() um iOS synthetischen Click nach Long-Press zu unterdrücken | ✓ Gut — kein Double-Trigger |
+| Clone-before-wire für Dialog-Buttons | Eliminiert stale-Listener-Akkumulation bei wiederholtem showModal() | ✓ Gut — keine Event-Leaks |
+| ngrok statt Self-Signed-Cert | Vermeidet Zertifikatswarnungen in Safari; einfacheres iPhone-Testing | ✓ Gut — als Projekt-Standard bestätigt |
+| registerType autoUpdate | Stille Background-Updates; kein User-Prompt | ✓ Gut — nahtlos für PWA |
+| navigateFallback zu offline.html | Gebrandete Offline-Seite für nicht-gecachte URLs | ✓ Gut — auf Gerät verifiziert |
+| PWA statt Native App | Kein App Store nötig, sofort testbar | ✓ Gut — alle Anforderungen erfüllt |
+| Langer Druck für Delete/Re-Record | iOS-natives Pattern, Hauptflow bleibt sauber | ✓ Gut — 9 iPhone-Tests bestanden |
+| Tap-to-start/stop Aufnahme | Einfacher als Halten | ✓ Gut — UX auf Gerät bestätigt |
 
 ---
-*Last updated: 2026-02-22 after initialization*
+*Last updated: 2026-02-22 after v1.0 milestone*

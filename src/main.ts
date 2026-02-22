@@ -6,8 +6,19 @@ import { initGrid, updateTile, updateAllTiles } from './ui/grid';
 import { triggerHaptic } from './ui/haptic';
 import { showActionSheet } from './ui/action-sheet';
 import { showRenameDialog } from './ui/rename-dialog';
+import { showInstallBanner } from './ui/install-banner';
+import { acquireWakeLock, releaseWakeLock } from './audio/wake-lock';
 
 const appState: AppState = createAppState();
+
+// Install banner: shown once per day after first user interaction, never in standalone
+let _bannerShown = false;
+function triggerInstallBannerOnce(): void {
+  if (_bannerShown) return;
+  _bannerShown = true;
+  // Small delay so the tile tap animation completes first
+  setTimeout(() => showInstallBanner(), 800);
+}
 
 // ------- Recording timer -------
 
@@ -45,6 +56,7 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
   // CRITICAL: triggerHaptic MUST be called before any await — iOS requires user gesture
   // to be synchronous; awaiting anything (even a resolved promise) breaks the gesture context.
   triggerHaptic();
+  triggerInstallBannerOnce();
 
   await requestStoragePersistence();
   await ensureAudioContextRunning();
@@ -78,6 +90,8 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
         stream,
         // onComplete: called when recording stops (manual or auto-stop at 30s)
         (result) => {
+          // Release wake lock as soon as recording data is assembled
+          void releaseWakeLock();
           stopRecordingTimer();
           const durationSeconds = Math.round((Date.now() - recordStartTime) / 1000);
           transitionTile(appState, index, 'saving');
@@ -117,6 +131,8 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
         },
       );
 
+      // Acquire wake lock after recording has started (non-blocking)
+      void acquireWakeLock();
       transitionTile(appState, index, 'recording', { activeRecording });
       updateTile(index, appState.tiles[index]);
       break;
@@ -124,6 +140,7 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
 
     case 'recording': {
       const current = appState.tiles[index];
+      void releaseWakeLock(); // manual stop — release before onComplete fires
       // Stop the active recording — triggers onComplete callback above
       // stopRecordingTimer() is called inside onComplete
       current.activeRecording?.stop();

@@ -8,6 +8,8 @@ export interface SlotRecord {
   blob: Blob;        // Raw audio blob from MediaRecorder
   mimeType: string;  // Detected at recording time; required for correct playback
   recordedAt: number; // Date.now() at recording completion
+  /** Elapsed recording time in seconds (added Phase 2). undefined for pre-Phase-2 records. */
+  durationSeconds?: number;
   /** User-customizable tile name. undefined = no label set. */
   label?: string;
 }

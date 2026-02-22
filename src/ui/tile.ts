@@ -58,11 +58,13 @@ export function buildTileContent(index: number, tile: TileData): string {
 
     case 'has-sound': {
       const label = tile.label ?? `Slot ${index + 1}`;
-      // TODO: Duration display requires durationSeconds field on SlotRecord
-      // — add in main.ts onComplete callback in a future plan.
+      const dur = tile.record?.durationSeconds != null
+        ? `<span class="tile-duration">${formatDuration(tile.record.durationSeconds)}</span>`
+        : '';
       return `
         <span class="tile-icon">▶</span>
         <span class="tile-label">${escapeHtml(label)}</span>
+        ${dur}
       `;
     }
 

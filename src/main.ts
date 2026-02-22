@@ -1,34 +1,53 @@
-import { RECORDING_MIME_TYPE } from './audio/format';
 import { getMicrophoneStream, startRecording } from './audio/recorder';
-import { ensureAudioContextRunning, playBlob, stopTile } from './audio/player';
-import { loadAllSlots, saveSlot, SlotIndex, requestStoragePersistence } from './storage/db';
+import { ensureAudioContextRunning, playBlob, stopTile, clearAudioCache } from './audio/player';
+import { loadAllSlots, saveSlot, loadSlot, deleteSlot, SlotIndex, requestStoragePersistence } from './storage/db';
 import { createAppState, transitionTile, AppState } from './state/store';
+import { initGrid, updateTile, updateAllTiles } from './ui/grid';
+import { triggerHaptic } from './ui/haptic';
+import { showActionSheet } from './ui/action-sheet';
+import { showRenameDialog } from './ui/rename-dialog';
 
 const appState: AppState = createAppState();
 
-function renderTiles(state: AppState): void {
-  const container = document.getElementById('tiles');
-  if (!container) return;
-  container.innerHTML = '';
-  state.tiles.forEach((tile, index) => {
-    const btn = document.createElement('button');
-    btn.dataset.slot = String(index);
-    let label = `Slot ${index}: ${tile.state}`;
-    if (tile.state === 'recording' && tile.warningActive) label += ' (25s!)';
-    if (tile.state === 'error' && tile.errorMessage) label += `\n${tile.errorMessage}`;
-    btn.textContent = label;
-    btn.addEventListener('click', () => {
-      handleTileTap(index as SlotIndex).catch((err: unknown) => {
-        console.error('Unhandled error in tap handler:', err);
-      });
-    });
-    container.appendChild(btn);
-  });
+// ------- Recording timer -------
+
+let _recordingTimer: ReturnType<typeof setInterval> | null = null;
+
+function startRecordingTimer(index: number): () => void {
+  const startTime = Date.now();
+  const MAX_SECONDS = 30;
+  _recordingTimer = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const remaining = Math.max(0, MAX_SECONDS - elapsed);
+    const elapsedEl = document.getElementById(`timer-elapsed-${index}`);
+    const remainingEl = document.getElementById(`timer-remaining-${index}`);
+    if (elapsedEl) elapsedEl.textContent = formatTimerDisplay(elapsed);
+    if (remainingEl) remainingEl.textContent = `0:${String(remaining).padStart(2, '0')}`;
+  }, 200);
+
+  return () => {
+    if (_recordingTimer !== null) {
+      clearInterval(_recordingTimer);
+      _recordingTimer = null;
+    }
+  };
 }
 
+function formatTimerDisplay(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// ------- Tile tap handler -------
+
 async function handleTileTap(index: SlotIndex): Promise<void> {
-  await requestStoragePersistence(); // STOR-03: first interaction (idempotent)
-  await ensureAudioContextRunning(); // iOS AudioContext unlock (MUST be first audio op)
+  // CRITICAL: triggerHaptic MUST be called before any await — iOS requires user gesture
+  // to be synchronous; awaiting anything (even a resolved promise) breaks the gesture context.
+  triggerHaptic();
+
+  await requestStoragePersistence();
+  await ensureAudioContextRunning();
 
   const tile = appState.tiles[index];
 
@@ -48,41 +67,44 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
             errorMessage: 'Mikrofon nicht verfügbar.',
           });
         }
-        renderTiles(appState);
+        updateTile(index, appState.tiles[index]);
         return;
       }
+
+      const recordStartTime = Date.now();
+      const stopRecordingTimer = startRecordingTimer(index);
 
       const activeRecording = startRecording(
         stream,
         // onComplete: called when recording stops (manual or auto-stop at 30s)
         (result) => {
+          stopRecordingTimer();
+          const durationSeconds = Math.round((Date.now() - recordStartTime) / 1000);
           transitionTile(appState, index, 'saving');
-          renderTiles(appState);
+          updateTile(index, appState.tiles[index]);
 
           saveSlot(index, {
             blob: result.blob,
             mimeType: result.mimeType,
             recordedAt: Date.now(),
+            durationSeconds,
           })
             .then(() => {
-              const saved = appState.tiles[index];
-              transitionTile(appState, index, 'has-sound', {
-                record: {
-                  blob: result.blob,
-                  mimeType: result.mimeType,
-                  recordedAt: saved?.state === 'saving'
-                    ? Date.now()
-                    : Date.now(),
-                },
-              });
-              renderTiles(appState);
+              const record = {
+                blob: result.blob,
+                mimeType: result.mimeType,
+                recordedAt: Date.now(),
+                durationSeconds,
+              };
+              transitionTile(appState, index, 'has-sound', { record });
+              updateTile(index, appState.tiles[index]);
             })
             .catch((err: unknown) => {
               console.error('saveSlot failed:', err);
               transitionTile(appState, index, 'error', {
                 errorMessage: 'Speichern fehlgeschlagen.',
               });
-              renderTiles(appState);
+              updateTile(index, appState.tiles[index]);
             });
         },
         // onWarning: fires at 25s before the 30s auto-stop
@@ -90,22 +112,23 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
           const current = appState.tiles[index];
           if (current.state === 'recording') {
             current.warningActive = true;
-            renderTiles(appState);
+            updateTile(index, appState.tiles[index]);
           }
         },
       );
 
       transitionTile(appState, index, 'recording', { activeRecording });
-      renderTiles(appState);
+      updateTile(index, appState.tiles[index]);
       break;
     }
 
     case 'recording': {
       const current = appState.tiles[index];
       // Stop the active recording — triggers onComplete callback above
+      // stopRecordingTimer() is called inside onComplete
       current.activeRecording?.stop();
       transitionTile(appState, index, 'saving');
-      renderTiles(appState);
+      updateTile(index, appState.tiles[index]);
       break;
     }
 
@@ -117,12 +140,12 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
       }
       const record = current.record;
       transitionTile(appState, index, 'playing', { record });
-      renderTiles(appState);
+      updateTile(index, appState.tiles[index]);
       try {
         await playBlob(index, record.blob, () => {
           // onEnded: playback completed naturally
           transitionTile(appState, index, 'has-sound', { record });
-          renderTiles(appState);
+          updateTile(index, appState.tiles[index]);
         });
       } catch (err: unknown) {
         console.error('playBlob failed (defective blob):', err);
@@ -131,7 +154,7 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
           errorMessage: 'Wiedergabe fehlgeschlagen. Datei defekt.',
           record,
         });
-        renderTiles(appState);
+        updateTile(index, appState.tiles[index]);
       }
       break;
     }
@@ -146,11 +169,11 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
       // Stop current playback, then restart from the beginning (PLAY-02)
       stopTile(index);
       transitionTile(appState, index, 'playing', { record });
-      renderTiles(appState);
+      updateTile(index, appState.tiles[index]);
       try {
         await playBlob(index, record.blob, () => {
           transitionTile(appState, index, 'has-sound', { record });
-          renderTiles(appState);
+          updateTile(index, appState.tiles[index]);
         });
       } catch (err: unknown) {
         console.error('playBlob failed on re-tap (defective blob):', err);
@@ -158,7 +181,7 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
           errorMessage: 'Wiedergabe fehlgeschlagen. Datei defekt.',
           record,
         });
-        renderTiles(appState);
+        updateTile(index, appState.tiles[index]);
       }
       break;
     }
@@ -167,14 +190,13 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
       const current = appState.tiles[index];
       if (current.record) {
         // Playback error — tile has a record but it's defective.
-        // Phase 1: no-op. Phase 2 will allow re-record via long-press.
-        // The error message stays visible until Phase 2 adds re-record UX.
+        // No-op: Phase 2 long-press re-record handles re-recording over defective blobs.
         break;
       }
       // Recording error — no record. Retry: go back to empty and attempt recording.
       transitionTile(appState, index, 'empty');
-      renderTiles(appState);
-      // Immediately retry recording (same tap)
+      updateTile(index, appState.tiles[index]);
+      // Immediately retry recording (same tap) — triggerHaptic already called above
       await handleTileTap(index);
       break;
     }
@@ -192,20 +214,104 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
   }
 }
 
+// ------- Long-press handler -------
+
+async function handleLongPress(index: SlotIndex): Promise<void> {
+  const tile = appState.tiles[index];
+
+  // Only act on tiles that have a recording (has-sound, playing, or error-with-record)
+  if (tile.state !== 'has-sound' && tile.state !== 'playing' && tile.state !== 'error') {
+    return;
+  }
+  if (!tile.record) {
+    return; // error state without a record — nothing to manage
+  }
+
+  const record = tile.record;
+
+  showActionSheet(index, tile.label, record.durationSeconds, {
+    onReRecord: () => {
+      // Delete existing audio cache, reset to empty, then immediately trigger recording
+      clearAudioCache(index);
+      transitionTile(appState, index, 'empty');
+      updateTile(index, appState.tiles[index]);
+      handleTileTap(index).catch((err: unknown) => {
+        console.error('Re-record tap error:', err);
+      });
+    },
+    onDelete: () => {
+      deleteSlot(index)
+        .then(() => {
+          clearAudioCache(index);
+          transitionTile(appState, index, 'empty');
+          updateTile(index, appState.tiles[index]);
+        })
+        .catch((err: unknown) => {
+          console.error('deleteSlot failed:', err);
+        });
+    },
+    onRename: () => {
+      handleRename(index).catch((err: unknown) => {
+        console.error('Rename error:', err);
+      });
+    },
+  });
+}
+
+async function handleRename(index: SlotIndex): Promise<void> {
+  const tile = appState.tiles[index];
+  const newLabel = await showRenameDialog(tile.label ?? '');
+  if (newLabel === null) return; // user cancelled
+  tile.label = newLabel || undefined; // clear empty string to undefined
+  // Persist label to IndexedDB
+  const record = await loadSlot(index);
+  if (record) {
+    await saveSlot(index, { ...record, label: tile.label });
+  }
+  updateTile(index, tile);
+}
+
+// ------- Bootstrap -------
+
 document.addEventListener('DOMContentLoaded', () => {
   loadAllSlots()
     .then((slots) => {
       slots.forEach((record, index) => {
         if (record) {
-          transitionTile(appState, index, 'has-sound', { record });
+          const tile = transitionTile(appState, index, 'has-sound', { record });
+          tile.label = record.label; // restore persisted label
         }
       });
-      renderTiles(appState);
-      // Log detected MIME type for debugging on device
-      console.log('Detected recording MIME type:', RECORDING_MIME_TYPE || '(browser default)');
+      initGrid(
+        appState,
+        (index) => {
+          handleTileTap(index as SlotIndex).catch((err: unknown) => {
+            console.error('Unhandled tap error:', err);
+          });
+        },
+        (index) => {
+          handleLongPress(index as SlotIndex).catch((err: unknown) => {
+            console.error('Unhandled long-press error:', err);
+          });
+        },
+      );
+      updateAllTiles(appState);
     })
     .catch((err: unknown) => {
       console.error('Failed to load slots from IndexedDB:', err);
-      renderTiles(appState);
+      initGrid(
+        appState,
+        (index) => {
+          handleTileTap(index as SlotIndex).catch((err2: unknown) => {
+            console.error('Unhandled tap error:', err2);
+          });
+        },
+        (index) => {
+          handleLongPress(index as SlotIndex).catch((err2: unknown) => {
+            console.error('Unhandled long-press error:', err2);
+          });
+        },
+      );
     });
 });
+

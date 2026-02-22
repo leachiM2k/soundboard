@@ -28,7 +28,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Microphone permission is requested only on the first record attempt, not on app load
   4. Recordings survive a full app restart and remain mapped to their original tile position
   5. Audio blobs are stored locally in IndexedDB with no data sent to any server
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Scaffold Vite 7 + TypeScript project, idb-keyval storage layer, MIME type detection
+- [ ] 01-02-PLAN.md — Recorder module: getMicrophoneStream (lazy, cached) + startRecording (30s auto-stop, iOS guards)
+- [ ] 01-03-PLAN.md — Player module: AudioContext singleton, playBlob with AudioBuffer cache, stopTile
+- [ ] 01-04-PLAN.md — State machine + app bootstrap harness + iPhone Safari verification checkpoint
 
 ### Phase 2: Tile UI and Interaction
 **Goal**: Users see a clear 3x3 grid, understand tile state at a glance, and can manage recordings via long-press
@@ -59,6 +65,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Audio and Storage Pipeline | 0/TBD | Not started | - |
+| 1. Audio and Storage Pipeline | 0/4 | Not started | - |
 | 2. Tile UI and Interaction | 0/TBD | Not started | - |
 | 3. PWA Shell and Offline | 0/TBD | Not started | - |

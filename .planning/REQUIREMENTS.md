@@ -72,33 +72,33 @@ Zurückgestellt auf späteren Release.
 
 ## Traceability
 
-Welche Phasen welche Requirements abdecken. Wird während der Roadmap-Erstellung befüllt.
+Welche Phasen welche Requirements abdecken.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GRID-01 | — | Pending |
-| GRID-02 | — | Pending |
-| PLAY-01 | — | Pending |
-| PLAY-02 | — | Pending |
-| PLAY-03 | — | Pending |
-| REC-01 | — | Pending |
-| REC-02 | — | Pending |
-| REC-03 | — | Pending |
-| REC-04 | — | Pending |
-| MGMT-01 | — | Pending |
-| MGMT-02 | — | Pending |
-| STOR-01 | — | Pending |
-| STOR-02 | — | Pending |
-| STOR-03 | — | Pending |
-| PWA-01 | — | Pending |
-| PWA-02 | — | Pending |
-| PWA-03 | — | Pending |
+| GRID-01 | Phase 2 | Pending |
+| GRID-02 | Phase 2 | Pending |
+| PLAY-01 | Phase 1 | Pending |
+| PLAY-02 | Phase 1 | Pending |
+| PLAY-03 | Phase 2 | Pending |
+| REC-01 | Phase 1 | Pending |
+| REC-02 | Phase 1 | Pending |
+| REC-03 | Phase 2 | Pending |
+| REC-04 | Phase 1 | Pending |
+| MGMT-01 | Phase 2 | Pending |
+| MGMT-02 | Phase 2 | Pending |
+| STOR-01 | Phase 1 | Pending |
+| STOR-02 | Phase 1 | Pending |
+| STOR-03 | Phase 1 | Pending |
+| PWA-01 | Phase 3 | Pending |
+| PWA-02 | Phase 3 | Pending |
+| PWA-03 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 17 total
-- Mapped to phases: 0
-- Unmapped: 17 ⚠️
+- Mapped to phases: 17
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-22*
-*Last updated: 2026-02-22 after initial definition*
+*Last updated: 2026-02-22 after roadmap creation*

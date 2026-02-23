@@ -70,7 +70,12 @@ Plans:
   2. Tapping Trim on an already-saved clip via the long-press menu re-applies trim; the updated duration badge reflects the shorter clip
   3. User can tap Export in the long-press menu to share a clip via the iOS share sheet on iOS 15+
   4. On iOS 14.x or if share fails, a file download fallback is offered; in standalone PWA mode the download link is suppressed and only the share sheet is shown
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Shared foundation: SlotRecord trim fields, action sheet Trim + Export buttons
+- [ ] 06-02-PLAN.md — TRIM-01: silence detection (trim.ts), toast with Undo (toast.ts), player trim offset support, auto-trim after recording
+- [ ] 06-03-PLAN.md — SHARE-01: Web Share Level 2 (share.ts), download fallback, standalone mode detection, device verification checkpoint
 
 ## Progress
 
@@ -82,5 +87,5 @@ Plans:
 | 2. Tile UI and Interaction | v1.0 | 4/4 | Complete | 2026-02-22 |
 | 3. PWA Shell and Offline | v1.0 | 3/3 | Complete | 2026-02-22 |
 | 4. Foundation | v1.1 | 3/3 | Complete | 2026-02-23 |
-| 5. Visual Feedback | 2/2 | Complete   | 2026-02-23 | - |
-| 6. Audio Operations | v1.1 | 0/TBD | Not started | - |
+| 5. Visual Feedback | v1.1 | 2/2 | Complete | 2026-02-23 |
+| 6. Audio Operations | v1.1 | 0/3 | Not started | - |

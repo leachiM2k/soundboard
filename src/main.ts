@@ -1,6 +1,8 @@
 import { getMicrophoneStream, startRecording } from './audio/recorder';
-import { ensureAudioContextRunning, playBlob, stopTile, clearAudioCache } from './audio/player';
+import { ensureAudioContextRunning, playBlob, stopTile, clearAudioCache, audioBufferCache, getAudioContext } from './audio/player';
 import { loadAllSlots, saveSlot, loadSlot, deleteSlot, SlotIndex, requestStoragePersistence } from './storage/db';
+import { findTrimOffsets, applyTrimToRecord } from './audio/trim';
+import { showTrimToast } from './ui/toast';
 import { createAppState, transitionTile, AppState } from './state/store';
 import { initGrid, updateTile, updateAllTiles } from './ui/grid';
 import { triggerHaptic } from './ui/haptic';
@@ -116,6 +118,10 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
               };
               transitionTile(appState, index, 'has-sound', { record });
               updateTile(index, appState.tiles[index]);
+              // Auto-trim silence after recording completes (non-blocking)
+              handleTrim(index).catch((err: unknown) => {
+                console.error('Auto-trim error (non-fatal):', err);
+              });
             })
             .catch((err: unknown) => {
               console.error('saveSlot failed:', err);
@@ -176,7 +182,7 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
         }, (startCtxTime, durationSec) => {
           // onStarted: audio hardware started — begin progress ring
           startPlaybackProgress(index, startCtxTime, durationSec);
-        });
+        }, record.trimStartSec ?? 0, record.trimEndSec);
       } catch (err: unknown) {
         console.error('playBlob failed (defective blob):', err);
         stopPlaybackProgress(index); // Path 2: has-sound catch — remove ring on error
@@ -210,7 +216,7 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
         }, (startCtxTime, durationSec) => {
           // onStarted: new playback started — begin fresh progress ring
           startPlaybackProgress(index, startCtxTime, durationSec);
-        });
+        }, record.trimStartSec ?? 0, record.trimEndSec);
       } catch (err: unknown) {
         console.error('playBlob failed on re-tap (defective blob):', err);
         stopPlaybackProgress(index); // Path 5: playing catch — remove ring on error
@@ -297,6 +303,11 @@ async function handleLongPress(index: SlotIndex): Promise<void> {
         console.error('Color change error:', err);
       });
     },
+    onTrim: () => {
+      handleTrim(index).catch((err: unknown) => {
+        console.error('Trim error:', err);
+      });
+    },
   }, appState.tiles[index].color);
 }
 
@@ -307,6 +318,46 @@ async function handleColorChange(index: SlotIndex, color: string | undefined): P
   const tile = appState.tiles[index];
   tile.color = color;
   updateTile(index, tile);
+}
+
+async function handleTrim(index: SlotIndex): Promise<void> {
+  const tile = appState.tiles[index];
+  if (!tile.record) return;
+
+  // Get cached AudioBuffer — populated on first play; if not yet played, decode now
+  let audioBuffer = audioBufferCache.get(index);
+  if (!audioBuffer) {
+    try {
+      const arrayBuffer = await tile.record.blob.arrayBuffer();
+      const ctx = getAudioContext();
+      audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      audioBufferCache.set(index, audioBuffer);
+    } catch {
+      console.error('handleTrim: failed to decode audio for trim');
+      return;
+    }
+  }
+
+  const offsets = findTrimOffsets(audioBuffer);
+  if (!offsets) {
+    // Entirely silent or no detectable audio above threshold
+    showTrimToast(null, 'Kein Ton gefunden');
+    return;
+  }
+
+  const originalRecord = tile.record;
+  const trimmedRecord = applyTrimToRecord(originalRecord, offsets.startSec, offsets.endSec);
+
+  await saveSlot(index, trimmedRecord);
+  tile.record = trimmedRecord;
+  updateTile(index, appState.tiles[index]);
+
+  showTrimToast(() => {
+    // Undo: restore original record (trim offsets cleared, original duration restored)
+    saveSlot(index, originalRecord).catch(console.error);
+    tile.record = originalRecord;
+    updateTile(index, appState.tiles[index]);
+  });
 }
 
 async function handleRename(index: SlotIndex): Promise<void> {

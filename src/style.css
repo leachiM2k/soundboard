@@ -229,6 +229,58 @@ body {
   padding: 14px 16px;
 }
 
+/* ── Color Swatches ────────────────────────────────────────────── */
+.action-sheet-section-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  margin: 0;
+  padding: 10px 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.action-sheet-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 16px 14px;
+  justify-content: center;
+}
+
+.color-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.color-swatch:active {
+  transform: scale(0.9);
+}
+
+.color-swatch--reset {
+  background: #3a3a3c;
+  position: relative;
+}
+
+.color-swatch--reset::after {
+  content: '✕';
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.color-swatch--active {
+  border-color: #ffffff;
+}
+
 /* ── Rename Dialog ─────────────────────────────────────────────── */
 #rename-dialog {
   position: fixed;

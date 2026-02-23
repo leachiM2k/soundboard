@@ -1,10 +1,11 @@
-import { formatDuration } from './tile';
+import { formatDuration, TILE_COLORS } from './tile';
 import { showConfirmDialog } from './confirm-dialog';
 
 export interface ActionSheetCallbacks {
   onReRecord: () => void;
   onRename: () => void;
   onDelete: () => void;
+  onColorChange: (color: string | undefined) => void;
 }
 
 /**
@@ -14,12 +15,14 @@ export interface ActionSheetCallbacks {
  *
  * CRITICAL: Clone buttons before wiring to remove stale listeners from previous opens.
  * CRITICAL: Close on backdrop click (click on dialog element itself, not content).
+ * CRITICAL: Swatch row rebuilt on every open (innerHTML = '') to prevent listener accumulation.
  */
 export function showActionSheet(
   index: number,
   label: string | undefined,
   durationSeconds: number | undefined,
   callbacks: ActionSheetCallbacks,
+  currentColor?: string,
 ): void {
   const dialog = document.getElementById('action-sheet') as HTMLDialogElement;
   const header = document.getElementById('action-sheet-header');
@@ -33,6 +36,38 @@ export function showActionSheet(
     } else {
       header.textContent = `Kachel ${index + 1}`;
     }
+  }
+
+  // Build color swatch row — rebuild on every open to prevent listener accumulation
+  const swatchRow = document.getElementById('action-sheet-colors');
+  if (swatchRow) {
+    swatchRow.innerHTML = '';
+    // Reset swatch (restores index-based default)
+    const resetBtn = document.createElement('button');
+    resetBtn.className = 'color-swatch color-swatch--reset';
+    resetBtn.title = 'Farbe zurücksetzen';
+    resetBtn.setAttribute('aria-label', 'Farbe zurücksetzen');
+    resetBtn.addEventListener('click', () => {
+      dialog.close();
+      callbacks.onColorChange(undefined);
+    });
+    swatchRow.appendChild(resetBtn);
+    // Preset swatches from TILE_COLORS
+    TILE_COLORS.forEach((color) => {
+      const btn = document.createElement('button');
+      btn.className = 'color-swatch';
+      btn.style.background = color;
+      btn.setAttribute('aria-label', color);
+      // Highlight currently active color
+      if (currentColor === color) {
+        btn.classList.add('color-swatch--active');
+      }
+      btn.addEventListener('click', () => {
+        dialog.close();
+        callbacks.onColorChange(color);
+      });
+      swatchRow.appendChild(btn);
+    });
   }
 
   // Wire buttons — replace each button with a clone to drop stale listeners

@@ -272,7 +272,21 @@ async function handleLongPress(index: SlotIndex): Promise<void> {
         console.error('Rename error:', err);
       });
     },
-  });
+    onColorChange: (color) => {
+      handleColorChange(index, color).catch((err: unknown) => {
+        console.error('Color change error:', err);
+      });
+    },
+  }, appState.tiles[index].color);
+}
+
+async function handleColorChange(index: SlotIndex, color: string | undefined): Promise<void> {
+  const record = await loadSlot(index);
+  if (!record) return;
+  await saveSlot(index, { ...record, color });
+  const tile = appState.tiles[index];
+  tile.color = color;
+  updateTile(index, tile);
 }
 
 async function handleRename(index: SlotIndex): Promise<void> {

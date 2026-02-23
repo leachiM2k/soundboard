@@ -123,7 +123,9 @@ function applyTileState(el: HTMLElement, index: number, tile: TileData): void {
 
   // Apply accent color for filled and playing states
   if (tile.state === 'has-sound' || tile.state === 'playing') {
-    el.style.setProperty('--tile-color', getTileColor(index));
+    const raw = tile.color;
+    const validated = raw && CSS.supports('color', raw) ? raw : null;
+    el.style.setProperty('--tile-color', validated ?? getTileColor(index));
   } else {
     el.style.removeProperty('--tile-color');
   }

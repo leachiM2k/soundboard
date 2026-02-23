@@ -3,6 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 iPhone Soundboard PWA** — Phases 1–3 (shipped 2026-02-22)
+- 🚧 **v1.1 UX-Polish + Neue Fähigkeiten** — Phases 4–6 (in progress)
 
 ## Phases
 
@@ -19,4 +20,58 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 ---
 
-_Next milestone: `/gsd:new-milestone` → questioning → research → requirements → roadmap_
+### 🚧 v1.1 UX-Polish + Neue Fähigkeiten (In Progress)
+
+**Milestone Goal:** Improve the recording experience, make clips editable and shareable, and add visual identity through tile colors. Ships 7 new capabilities on top of the v1.0 foundation without breaking any existing behavior.
+
+- [ ] **Phase 4: Foundation** — Schema extension, delete confirmation dialog, clip duration badge, tile color persistence
+- [ ] **Phase 5: Visual Feedback** — Live waveform visualizer during recording, playback progress indicator
+- [ ] **Phase 6: Audio Operations** — Auto-trim silence, clip export via Web Share API
+
+## Phase Details
+
+### Phase 4: Foundation
+**Goal**: Users experience safer interactions and richer tile information through non-destructive delete flow, visible clip duration, and persisted tile colors
+**Depends on**: Phase 3 (v1.0 complete)
+**Requirements**: UX-01, UX-02, COLOR-01
+**Success Criteria** (what must be TRUE):
+  1. User tapping Delete in the long-press menu sees a confirmation dialog before the clip is removed
+  2. Every occupied tile shows a clip-duration badge (e.g., "2.4s") in both has-sound and playing states
+  3. User can pick one of 8 preset colors for a tile via the long-press menu; the color persists after app restart
+  4. Existing v1.0 clips without a stored color load without errors (backward-compatible optional field)
+**Plans**: TBD
+
+### Phase 5: Visual Feedback
+**Goal**: Users see live proof the microphone is active during recording and real-time progress while a clip plays
+**Depends on**: Phase 4
+**Requirements**: VIZ-01, UX-03
+**Success Criteria** (what must be TRUE):
+  1. During recording, frequency bars animate inside the tile canvas at up to 30fps, visibly reacting to sound
+  2. The frequency bars stop and the canvas is removed cleanly when recording ends (no orange mic dot left on iOS)
+  3. During playback, a progress ring or bar on the tile fills from 0% to 100% in real time and then disappears
+  4. Progress animation is cancelled immediately when playback is stopped early (re-tap)
+**Plans**: TBD
+
+### Phase 6: Audio Operations
+**Goal**: Users can tighten their clips by auto-trimming silence and share any clip via the iOS share sheet or file download
+**Depends on**: Phase 5
+**Requirements**: TRIM-01, SHARE-01
+**Success Criteria** (what must be TRUE):
+  1. After recording, silence at the start and end of a clip is trimmed automatically; user sees "Trim applied" feedback with an Undo option
+  2. Tapping Trim on an already-saved clip via the long-press menu re-applies trim; the updated duration badge reflects the shorter clip
+  3. User can tap Export in the long-press menu to share a clip via the iOS share sheet on iOS 15+
+  4. On iOS 14.x or if share fails, a file download fallback is offered; in standalone PWA mode the download link is suppressed and only the share sheet is shown
+**Plans**: TBD
+
+## Progress
+
+**Execution Order:** 4 → 5 → 6
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 1. Audio and Storage Pipeline | v1.0 | 4/4 | Complete | 2026-02-22 |
+| 2. Tile UI and Interaction | v1.0 | 4/4 | Complete | 2026-02-22 |
+| 3. PWA Shell and Offline | v1.0 | 3/3 | Complete | 2026-02-22 |
+| 4. Foundation | v1.1 | 0/TBD | Not started | - |
+| 5. Visual Feedback | v1.1 | 0/TBD | Not started | - |
+| 6. Audio Operations | v1.1 | 0/TBD | Not started | - |

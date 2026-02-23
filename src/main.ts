@@ -12,6 +12,7 @@ import { showInstallBanner } from './ui/install-banner';
 import { acquireWakeLock, releaseWakeLock } from './audio/wake-lock';
 import { startRecordingViz, stopRecordingViz } from './ui/viz-recording';
 import { startPlaybackProgress, stopPlaybackProgress } from './ui/viz-playback';
+import { exportClip } from './ui/share';
 
 const appState: AppState = createAppState();
 
@@ -307,6 +308,9 @@ async function handleLongPress(index: SlotIndex): Promise<void> {
       handleTrim(index).catch((err: unknown) => {
         console.error('Trim error:', err);
       });
+    },
+    onExport: () => {
+      exportClip(record, index);
     },
   }, appState.tiles[index].color);
 }

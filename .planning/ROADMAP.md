@@ -25,7 +25,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 **Milestone Goal:** Improve the recording experience, make clips editable and shareable, and add visual identity through tile colors. Ships 7 new capabilities on top of the v1.0 foundation without breaking any existing behavior.
 
 - [x] **Phase 4: Foundation** — Schema extension, delete confirmation dialog, clip duration badge, tile color persistence (completed 2026-02-23)
-- [ ] **Phase 5: Visual Feedback** — Live waveform visualizer during recording, playback progress indicator
+- [x] **Phase 5: Visual Feedback** — Live waveform visualizer during recording, playback progress indicator (completed 2026-02-23)
 - [ ] **Phase 6: Audio Operations** — Auto-trim silence, clip export via Web Share API
 
 ## Phase Details
@@ -82,5 +82,5 @@ Plans:
 | 2. Tile UI and Interaction | v1.0 | 4/4 | Complete | 2026-02-22 |
 | 3. PWA Shell and Offline | v1.0 | 3/3 | Complete | 2026-02-22 |
 | 4. Foundation | v1.1 | 3/3 | Complete | 2026-02-23 |
-| 5. Visual Feedback | 1/2 | In Progress|  | - |
+| 5. Visual Feedback | 2/2 | Complete   | 2026-02-23 | - |
 | 6. Audio Operations | v1.1 | 0/TBD | Not started | - |

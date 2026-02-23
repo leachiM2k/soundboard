@@ -1,7 +1,11 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+const isProd = process.env.NODE_ENV === 'production';
+const base = isProd ? '/soundboard/' : '/';
+
 export default defineConfig({
+  base,
   server: {
     allowedHosts: ['.ngrok-free.app'],
   },
@@ -19,8 +23,8 @@ export default defineConfig({
         short_name: 'Soundboard',
         description: 'Record and play back sounds instantly.',
         display: 'standalone',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
         theme_color: '#1a1a2e',
         background_color: '#ff6b35',
         icons: [

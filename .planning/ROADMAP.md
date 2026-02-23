@@ -55,7 +55,11 @@ Plans:
   2. The frequency bars stop and the canvas is removed cleanly when recording ends (no orange mic dot left on iOS)
   3. During playback, a progress ring or bar on the tile fills from 0% to 100% in real time and then disappears
   4. Progress animation is cancelled immediately when playback is stopped early (re-tap)
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — VIZ-01 recording visualizer (viz-recording.ts, AnalyserNode + canvas bars, main.ts recording paths)
+- [ ] 05-02-PLAN.md — UX-03 playback progress ring (viz-playback.ts, SVG stroke-dashoffset, player.ts onStarted, main.ts playback paths)
 
 ### Phase 6: Audio Operations
 **Goal**: Users can tighten their clips by auto-trimming silence and share any clip via the iOS share sheet or file download
@@ -77,6 +81,6 @@ Plans:
 | 1. Audio and Storage Pipeline | v1.0 | 4/4 | Complete | 2026-02-22 |
 | 2. Tile UI and Interaction | v1.0 | 4/4 | Complete | 2026-02-22 |
 | 3. PWA Shell and Offline | v1.0 | 3/3 | Complete | 2026-02-22 |
-| 4. Foundation | 3/3 | Complete   | 2026-02-23 | - |
-| 5. Visual Feedback | v1.1 | 0/TBD | Not started | - |
+| 4. Foundation | v1.1 | 3/3 | Complete | 2026-02-23 |
+| 5. Visual Feedback | v1.1 | 0/2 | Not started | - |
 | 6. Audio Operations | v1.1 | 0/TBD | Not started | - |

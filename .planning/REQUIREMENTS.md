@@ -13,7 +13,7 @@
 
 ### VIZ — Visualisierung
 
-- [ ] **VIZ-01**: Nutzer sieht Echtzeit-Frequenz-Balken (Bar-Stil, kein Oszilloskop) während der Aufnahme; Animation beweist dass das Mikrofon tatsächlich aufnimmt
+- [x] **VIZ-01**: Nutzer sieht Echtzeit-Frequenz-Balken (Bar-Stil, kein Oszilloskop) während der Aufnahme; Animation beweist dass das Mikrofon tatsächlich aufnimmt
 
 ### COLOR — Tile-Farben
 
@@ -59,7 +59,7 @@
 | UX-01 | Phase 4 | Complete |
 | UX-02 | Phase 4 | Complete |
 | COLOR-01 | Phase 4 | Complete |
-| VIZ-01 | Phase 5 | Pending |
+| VIZ-01 | Phase 5 | Complete |
 | UX-03 | Phase 5 | Pending |
 | TRIM-01 | Phase 6 | Pending |
 | SHARE-01 | Phase 6 | Pending |

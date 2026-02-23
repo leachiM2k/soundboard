@@ -22,3 +22,25 @@
 **Requirements:** `.planning/milestones/v1.0-REQUIREMENTS.md`
 
 ---
+
+## v1.1 UX-Polish + Neue Fähigkeiten (Shipped: 2026-02-23)
+
+**Phases completed:** 3 phases (4–6), 8 plans, 21 tasks
+
+**Stats:**
+- 49 files changed, ~1,807 LOC TypeScript
+- Timeline: 1 day (2026-02-23)
+
+**Key accomplishments:**
+1. Delete confirmation dialog — two-tap guard before irreversible clip removal; async Promise<boolean> pattern (UX-01)
+2. Clip duration badge on all occupied tiles including playing state; per-tile color picker with 9 presets, CSS custom property, IndexedDB persistence (UX-02, COLOR-01)
+3. Real-time 12-bar frequency visualizer during recording — AnalyserNode + canvas rAF loop, iOS 14-safe (VIZ-01)
+4. SVG progress ring synchronized to AudioContext.currentTime during playback, 30fps cap (UX-03)
+5. Lossless offset-based silence auto-trim with 5-second Undo toast; non-blocking, session-only undo (TRIM-01)
+6. Clip export via iOS Share Sheet (Web Share Level 2) with browser-mode download fallback; format fix ensures recordings are always AAC/M4A for WhatsApp compatibility (SHARE-01)
+
+**Archive:** `.planning/milestones/v1.1-ROADMAP.md`
+**Requirements:** `.planning/milestones/v1.1-REQUIREMENTS.md`
+
+---
+

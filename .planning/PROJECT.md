@@ -4,7 +4,7 @@
 
 Eine Progressive Web App (PWA) für das iPhone, die als Soundboard mit 9 fixen Kacheln fungiert. Jede Kachel speichert einen selbst aufgenommenen Sound und spielt ihn per Tipp ab. Die App läuft direkt im Safari-Browser, kann zum Home Screen hinzugefügt werden, und funktioniert vollständig offline — kein App Store, kein Backend, keine Cloud.
 
-**Current state (v1.1 in progress):** v1.0 vollständig ausgeliefert. v1.1 fügt UX-Polish und neue Fähigkeiten hinzu: Wellenform-Visualizer, Audio-Trim, Clip-Export, Tile-Farben, Playback-Fortschritt, Clip-Länge, Bestätigungs-Dialog.
+**Current state (v1.1 shipped):** v1.0 + v1.1 vollständig ausgeliefert. v1.1 lieferte Wellenform-Visualizer, Playback-Fortschrittsring, Audio-Trim mit Undo, Clip-Export via iOS Share Sheet, Tile-Farben, Clip-Länge-Badge und Bestätigungs-Dialog beim Löschen.
 
 ## Core Value
 
@@ -12,7 +12,7 @@ Ein Knopf drücken, ein Sound ertönt — sofort, zuverlässig, ohne Umwege.
 
 ## Requirements
 
-### Validated (v1.0)
+### Validated (v1.0 + v1.1)
 
 - ✓ 9 fixe Kacheln auf einem Screen, kein Scrolling — v1.0 (GRID-01)
 - ✓ Leere vs. belegte Kacheln visuell unterscheidbar — v1.0 (GRID-02)
@@ -28,19 +28,17 @@ Ein Knopf drücken, ein Sound ertönt — sofort, zuverlässig, ohne Umwege.
 - ✓ App zum iPhone Home Screen hinzufügbar (standalone mode) — v1.0 (PWA-01)
 - ✓ App funktioniert offline nach erster Installation — v1.0 (PWA-02)
 - ✓ Einmaliger "Zum Home Screen" Hinweis im Safari-Browser-Modus — v1.0 (PWA-03)
+- ✓ Bestätigungs-Dialog beim Löschen (zwei Taps) — v1.1 (UX-01)
+- ✓ Clip-Länge als Badge auf belegten Tiles (has-sound + playing) — v1.1 (UX-02)
+- ✓ Playback-Fortschrittsring (SVG, AudioContext.currentTime) — v1.1 (UX-03)
+- ✓ Echtzeit-Frequenz-Balken während Aufnahme (AnalyserNode, iOS-safe) — v1.1 (VIZ-01)
+- ✓ Per-Tile Farbe aus 9 Voreinstellungen, IndexedDB-persistent — v1.1 (COLOR-01)
+- ✓ Lossless Silence-Trim mit Offset-Speicherung und 5s-Undo-Toast — v1.1 (TRIM-01)
+- ✓ Clip-Export via iOS Share Sheet (Web Share Level 2) + Download-Fallback — v1.1 (SHARE-01)
 
-### Active (v1.1)
+### Active (v1.2)
 
-**Milestone v1.1 — UX-Polish + Neue Fähigkeiten**
-Goal: Aufnahme-Erfahrung verbessern, Clips bearbeitbar und teilbar machen, visuelle Orientierung durch Farben.
-
-- [ ] Echtzeit-Wellenform-Visualisierung während Aufnahme (VIZ-01)
-- [ ] Bestätigungs-Dialog beim Löschen (UX-01)
-- [ ] Clip-Länge als Badge auf belegten Tiles (UX-02)
-- [ ] Playback-Fortschrittsanzeige während Wiedergabe (UX-03)
-- [ ] Tile-Farben: frei wählbare Farbe pro Tile (COLOR-01)
-- [ ] Audio-Trim: Stille am Anfang/Ende abschneiden (TRIM-01)
-- [ ] Clip-Export via Web Share API / Datei-Download (SHARE-01)
+*(leer — noch kein nächstes Milestone definiert)*
 
 ### Out of Scope
 
@@ -57,7 +55,7 @@ Goal: Aufnahme-Erfahrung verbessern, Clips bearbeitbar und teilbar machen, visue
 - **Audio:** MediaRecorder API (AAC auf iOS, Opus/WebM auf anderen) → IndexedDB Blob → Web Audio API (AudioContext + AudioBufferSourceNode)
 - **PWA:** Workbox service worker mit 13 precached Assets; autoUpdate; navigateFallback offline.html
 - **iPhone testing:** ngrok HTTPS-Tunnel (empfohlen) — vermeidet Safari-Zertifikatswarnungen
-- **Codebase:** ~1,250 LOC TypeScript, 65 Dateien, keine externen Framework-Abhängigkeiten
+- **Codebase:** ~1,807 LOC TypeScript, 49 Dateien geändert in v1.1, keine externen Framework-Abhängigkeiten
 
 ## Constraints
 
@@ -82,6 +80,14 @@ Goal: Aufnahme-Erfahrung verbessern, Clips bearbeitbar und teilbar machen, visue
 | PWA statt Native App | Kein App Store nötig, sofort testbar | ✓ Gut — alle Anforderungen erfüllt |
 | Langer Druck für Delete/Re-Record | iOS-natives Pattern, Hauptflow bleibt sauber | ✓ Gut — 9 iPhone-Tests bestanden |
 | Tap-to-start/stop Aufnahme | Einfacher als Halten | ✓ Gut — UX auf Gerät bestätigt |
+| AnalyserNode NICHT mit ctx.destination verbunden | Verhindert Mikrofon→Lautsprecher-Feedback auf iOS | ✓ Gut — kein Feedback auf Gerät |
+| getByteFrequencyData statt getFloatTimeDomainData | Safari-kompatibel (Float-Variante fehlt auf WebKit) | ✓ Gut — funktioniert auf iOS 14+ |
+| fillRect statt roundRect für Visualizer-Balken | roundRect auf iOS 14.3 nicht verfügbar | ✓ Gut — keine Laufzeitfehler |
+| AudioContext.currentTime für Playback-Ring | Hardware-synchronisiert, kein Drift gegenüber Date.now | ✓ Gut — Ring läuft synchron |
+| Offset-basierter Trim (kein Re-Encode) | Lossless, kein WASM nötig, kein 4-8MB Download | ✓ Gut — augenblicklich, keine Qualitätsverlust |
+| Undo nur Session-intern (Closure, 5s) | Einfacher als persistente Undo-History | ✓ Gut — entspricht iOS Voice Memo-Verhalten |
+| exportClip synchron (kein async) | iOS navigator.share() erfordert Transient Activation; kein await vor dem Aufruf | ✓ Gut — Share Sheet öffnet auf Gerät |
+| audio/mp4 vor audio/webm priorisiert | iOS 16+ Safari unterstützt webm in MediaRecorder; mp4/AAC universell kompatibel (WhatsApp, native Player) | ✓ Gut — Clips öffnen überall |
 
 ---
-*Last updated: 2026-02-23 after v1.1 milestone start*
+*Last updated: 2026-02-23 after v1.1 milestone*

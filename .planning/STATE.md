@@ -2,18 +2,18 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-23 after v1.1 milestone start)
+See: .planning/PROJECT.md (updated 2026-02-23 after v1.1 milestone)
 
 **Core value:** Ein Knopf drücken, ein Sound ertönt — sofort, zuverlässig, ohne Umwege.
-**Current focus:** Phase 6 — Export (v1.1)
+**Current focus:** Planning next milestone (v1.2)
 
 ## Current Position
 
-Milestone: v1.1 — UX-Polish + Neue Fähigkeiten
+Milestone: v1.1 — UX-Polish + Neue Fähigkeiten — ✅ SHIPPED 2026-02-23
 Phase: 6 of 6 (Audio Operations) — COMPLETE
 Plan: 3 of 3 in current phase — COMPLETE
-Status: v1.1 milestone complete — all 7 requirements (TRIM-01, SHARE-01, UX-01, UX-02, UX-03, VIZ-01, COLOR-01) verified on real iPhone Safari
-Last activity: 2026-02-23 — Phase 6 Plan 03 complete; TRIM-01 + SHARE-01 device-verified; post-checkpoint format fix (480f3b9) applied
+Status: v1.1 archived — all 7 requirements verified on real iPhone Safari; planning next milestone
+Last activity: 2026-02-23 — v1.1 milestone complete, archived to .planning/milestones/
 
 Progress: [██████████] 100% (v1.1, 9 of 9 plans)
 

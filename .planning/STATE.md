@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-23 after v1.1 milestone start)
 
 Milestone: v1.1 — UX-Polish + Neue Fähigkeiten
 Phase: 6 of 6 (Audio Operations) — IN PROGRESS
-Plan: 2 of 3 in current phase — COMPLETE
-Status: Phase 6 Plan 02 complete — silence trim implementation (TRIM-01): findTrimOffsets, applyTrimToRecord, showTrimToast, offset-based playback
-Last activity: 2026-02-23 — Phase 6 Plan 02 complete (TRIM-01); auto-trim after recording, manual trim via action sheet, Undo toast
+Plan: 3 of 3 in current phase — AWAITING CHECKPOINT (human-verify Task 3)
+Status: Phase 6 Plan 03 auto-tasks complete — SHARE-01 share.ts created, onExport wired in main.ts; awaiting iPhone device verification (Task 3 checkpoint)
+Last activity: 2026-02-23 — Phase 6 Plan 03 auto-tasks done (SHARE-01 code complete); pending device verification
 
-Progress: [███████░░░] ~78% (v1.1, 7 of ~9 plans)
+Progress: [████████░░] ~85% (v1.1, 8 of ~9 plans)
 
 ## Performance Metrics
 
@@ -81,6 +81,12 @@ All v1.0 decisions carried forward.
 - [Phase 06-audio-operations]: handleTrim decodes AudioBuffer on-demand if cache miss — prevents 'no buffer' error on first-play-trim
 - [Phase 06-audio-operations]: Auto-trim uses .catch(console.error) pattern — failure is non-fatal, tile remains fully usable
 
+**Phase 6 Plan 03 decisions:**
+- [Phase 06-audio-operations]: exportClip is synchronous (not async) — preserves iOS transient activation; blob pre-loaded in tile.record, no IndexedDB read before navigator.share()
+- [Phase 06-audio-operations]: navigator.canShare?.() uses optional chaining — handles iOS < 15 where canShare method does not exist (avoids TypeError)
+- [Phase 06-audio-operations]: triggerDownload is internal (non-exported) — only reachable from share.ts, keeps module surface clean
+- [Phase 06-audio-operations]: isStandaloneMode() exported separately — allows callers to check standalone status independently if needed
+
 ### Pending Todos
 
 None.
@@ -93,5 +99,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 6 Plan 02 complete — silence trim implementation (TRIM-01 complete)
-Resume with: `/gsd:execute-phase 6` (next: Phase 6 Plan 03 — export/share implementation)
+Stopped at: Phase 6 Plan 03 checkpoint — awaiting iPhone device verification (TRIM-01 + SHARE-01)
+Resume with: `/gsd:execute-phase 6` (continue Phase 6 Plan 03 Task 3 after device verification)

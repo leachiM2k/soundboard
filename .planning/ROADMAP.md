@@ -26,7 +26,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 - [x] **Phase 4: Foundation** — Schema extension, delete confirmation dialog, clip duration badge, tile color persistence (completed 2026-02-23)
 - [x] **Phase 5: Visual Feedback** — Live waveform visualizer during recording, playback progress indicator (completed 2026-02-23)
-- [ ] **Phase 6: Audio Operations** — Auto-trim silence, clip export via Web Share API
+- [x] **Phase 6: Audio Operations** — Auto-trim silence, clip export via Web Share API (completed 2026-02-23)
 
 ## Phase Details
 
@@ -88,4 +88,4 @@ Plans:
 | 3. PWA Shell and Offline | v1.0 | 3/3 | Complete | 2026-02-22 |
 | 4. Foundation | v1.1 | 3/3 | Complete | 2026-02-23 |
 | 5. Visual Feedback | v1.1 | 2/2 | Complete | 2026-02-23 |
-| 6. Audio Operations | 2/3 | In Progress|  | - |
+| 6. Audio Operations | 3/3 | Complete   | 2026-02-23 | - |

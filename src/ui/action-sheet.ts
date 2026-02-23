@@ -96,8 +96,11 @@ export function showActionSheet(
   wireBtn('btn-cancel', () => {}); // cancel just closes
 
   // Close on backdrop click (Pitfall 6 from research)
+  // Guard: ignore clicks within 400ms of opening — on iOS PWA the finger-lift after
+  // long-press synthesises a click that would otherwise immediately close the dialog.
+  const openedAt = Date.now();
   const onDialogClick = (e: MouseEvent) => {
-    if (e.target === dialog) {
+    if (e.target === dialog && Date.now() - openedAt > 400) {
       dialog.close();
       dialog.removeEventListener('click', onDialogClick);
     }

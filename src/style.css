@@ -23,6 +23,16 @@ body {
   min-height: 0;            /* CRITICAL: prevents flex child from overflowing */
 }
 
+/* ── Silent mode hint ─────────────────────────────────────────── */
+#silent-hint {
+  text-align: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  padding: 4px 0 0;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
 /* ── Grid ─────────────────────────────────────────────────────── */
 #grid {
   display: grid;
@@ -30,6 +40,7 @@ body {
   grid-template-rows: repeat(3, 1fr);
   gap: var(--gap);
   padding: var(--gap);
+  padding-top: calc(var(--gap) + env(safe-area-inset-top, 0px));
   padding-bottom: calc(var(--gap) + var(--safe-bottom));
   flex: 1;
   min-height: 0;

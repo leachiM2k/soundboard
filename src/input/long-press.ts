@@ -43,11 +43,19 @@ export function attachLongPress(
   el.addEventListener('touchmove', cancel);
   el.addEventListener('touchcancel', cancel);
 
+  // Mouse support for desktop — only fires when no touch is active
+  el.addEventListener('mousedown', start);
+  el.addEventListener('mouseup', cancel);
+  el.addEventListener('mouseleave', cancel);
+
   return () => {
     cancel();
     el.removeEventListener('touchstart', start);
     el.removeEventListener('touchend', onTouchEnd);
     el.removeEventListener('touchmove', cancel);
     el.removeEventListener('touchcancel', cancel);
+    el.removeEventListener('mousedown', start);
+    el.removeEventListener('mouseup', cancel);
+    el.removeEventListener('mouseleave', cancel);
   };
 }

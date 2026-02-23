@@ -65,11 +65,11 @@ export function startRecording(
   const chunks: BlobPart[] = [];
 
   // Use RECORDING_MIME_TYPE detected at startup (never hardcode — breaks on iOS or Chrome).
-  // audioBitsPerSecond is intentionally not set: iOS Safari may ignore it,
-  // and AAC default bitrate produces well under 500 KB for 30s of mono speech.
+  // 64 kbps is sufficient for speech/sound effects and roughly halves file size vs default.
+  // iOS Safari may ignore audioBitsPerSecond — this is best-effort.
   const options: MediaRecorderOptions = RECORDING_MIME_TYPE
-    ? { mimeType: RECORDING_MIME_TYPE }
-    : {};
+    ? { mimeType: RECORDING_MIME_TYPE, audioBitsPerSecond: 64_000 }
+    : { audioBitsPerSecond: 64_000 };
 
   const recorder = new MediaRecorder(stream, options);
 

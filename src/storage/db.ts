@@ -14,6 +14,10 @@ export interface SlotRecord {
   label?: string;
   // NEW: user-chosen CSS color. undefined = use index-based default
   color?: string;
+  /** Trim start offset in seconds. undefined = no trim applied (play from beginning). */
+  trimStartSec?: number;
+  /** Trim end offset in seconds. undefined = no trim applied (play to natural end). */
+  trimEndSec?: number;
 }
 
 // SlotIndex is 0-8, mapping directly to tile positions in the 3x3 grid.

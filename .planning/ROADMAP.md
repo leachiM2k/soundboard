@@ -39,7 +39,12 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
   2. Every occupied tile shows a clip-duration badge (e.g., "2.4s") in both has-sound and playing states
   3. User can pick one of 8 preset colors for a tile via the long-press menu; the color persists after app restart
   4. Existing v1.0 clips without a stored color load without errors (backward-compatible optional field)
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Schema extension (color field) + UX-02 duration badge fix in playing state
+- [ ] 04-02-PLAN.md — UX-01 delete confirmation dialog (confirm-dialog.ts, action-sheet wire-up)
+- [ ] 04-03-PLAN.md — COLOR-01 tile color picker (swatch row, CSS.supports validation, IndexedDB persistence)
 
 ### Phase 5: Visual Feedback
 **Goal**: Users see live proof the microphone is active during recording and real-time progress while a clip plays
@@ -72,6 +77,6 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 | 1. Audio and Storage Pipeline | v1.0 | 4/4 | Complete | 2026-02-22 |
 | 2. Tile UI and Interaction | v1.0 | 4/4 | Complete | 2026-02-22 |
 | 3. PWA Shell and Offline | v1.0 | 3/3 | Complete | 2026-02-22 |
-| 4. Foundation | v1.1 | 0/TBD | Not started | - |
+| 4. Foundation | v1.1 | 0/3 | Planned | - |
 | 5. Visual Feedback | v1.1 | 0/TBD | Not started | - |
 | 6. Audio Operations | v1.1 | 0/TBD | Not started | - |

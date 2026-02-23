@@ -301,6 +301,56 @@ body {
   font-weight: 600;
 }
 
+/* ── Confirm Dialog ────────────────────────────────────────────── */
+#confirm-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  width: min(300px, 88vw);
+  border: none;
+  border-radius: 14px;
+  background: #2c2c2e;
+  padding: 20px;
+}
+
+#confirm-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.confirm-dialog-message {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  margin-bottom: 18px;
+  line-height: 1.4;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.confirm-dialog-actions button {
+  flex: 1;
+  padding: 11px 10px;
+  font-size: 16px;
+  font-family: inherit;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  background: #3a3a3c;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.confirm-dialog-actions button.destructive {
+  background: #ff3b30;
+  color: #fff;
+  font-weight: 600;
+}
+
 /* ── Install banner ──────────────────────────────────────────── */
 #install-banner {
   position: fixed;

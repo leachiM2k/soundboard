@@ -40,6 +40,17 @@
       </form>
     </dialog>
 
+    <!-- Confirm dialog (delete confirmation) -->
+    <dialog id="confirm-dialog" aria-modal="true">
+      <div class="confirm-dialog-content">
+        <p class="confirm-dialog-message" id="confirm-dialog-message"></p>
+        <div class="confirm-dialog-actions">
+          <button id="confirm-dialog-cancel">Abbrechen</button>
+          <button id="confirm-dialog-confirm" class="destructive">Löschen</button>
+        </div>
+      </div>
+    </dialog>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

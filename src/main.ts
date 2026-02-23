@@ -8,6 +8,7 @@ import { showActionSheet } from './ui/action-sheet';
 import { showRenameDialog } from './ui/rename-dialog';
 import { showInstallBanner } from './ui/install-banner';
 import { acquireWakeLock, releaseWakeLock } from './audio/wake-lock';
+import { startRecordingViz, stopRecordingViz } from './ui/viz-recording';
 
 const appState: AppState = createAppState();
 
@@ -90,6 +91,8 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
         stream,
         // onComplete: called when recording stops (manual or auto-stop at 30s)
         (result) => {
+          // Remove visualizer canvas before transitioning tile to saving state
+          stopRecordingViz(index);
           // Release wake lock as soon as recording data is assembled
           void releaseWakeLock();
           stopRecordingTimer();
@@ -131,6 +134,8 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
         },
       );
 
+      // Start frequency bar visualizer (stream is in scope from getMicrophoneStream())
+      startRecordingViz(index, stream);
       // Acquire wake lock after recording has started (non-blocking)
       void acquireWakeLock();
       transitionTile(appState, index, 'recording', { activeRecording });
@@ -141,6 +146,8 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
     case 'recording': {
       const current = appState.tiles[index];
       void releaseWakeLock(); // manual stop — release before onComplete fires
+      // Remove visualizer canvas before recording stops (idempotent — onComplete will also call it)
+      stopRecordingViz(index);
       // Stop the active recording — triggers onComplete callback above
       // stopRecordingTimer() is called inside onComplete
       current.activeRecording?.stop();

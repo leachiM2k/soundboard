@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-23 after v1.1 milestone start)
 
 Milestone: v1.1 — UX-Polish + Neue Fähigkeiten
 Phase: 6 of 6 (Audio Operations) — IN PROGRESS
-Plan: 1 of 3 in current phase — COMPLETE
-Status: Phase 6 Plan 01 complete — shared foundation (SlotRecord trim fields, action sheet Trim + Export buttons)
-Last activity: 2026-02-23 — Phase 6 Plan 01 complete (TRIM-01/SHARE-01 foundation); trim/export buttons wired in action sheet
+Plan: 2 of 3 in current phase — COMPLETE
+Status: Phase 6 Plan 02 complete — silence trim implementation (TRIM-01): findTrimOffsets, applyTrimToRecord, showTrimToast, offset-based playback
+Last activity: 2026-02-23 — Phase 6 Plan 02 complete (TRIM-01); auto-trim after recording, manual trim via action sheet, Undo toast
 
-Progress: [██████░░░░] ~67% (v1.1, 6 of ~9 plans)
+Progress: [███████░░░] ~78% (v1.1, 7 of ~9 plans)
 
 ## Performance Metrics
 
@@ -33,6 +33,7 @@ Progress: [██████░░░░] ~67% (v1.1, 6 of ~9 plans)
 | 05-visual-feedback | 01 | 2min | 2 | 3 |
 | 05-visual-feedback | 02 | ~30min | 3 | 4 |
 | 06-audio-operations | 01 | ~1min | 2 | 3 |
+| 06-audio-operations | 02 | 2min | 3 | 5 |
 
 ## Accumulated Context
 
@@ -74,6 +75,12 @@ All v1.0 decisions carried forward.
 - [Phase 06-audio-operations]: onTrim? and onExport? are optional on ActionSheetCallbacks — existing callers in main.ts compile unchanged until Plans 02/03 wire the handlers
 - [Phase 06-audio-operations]: btn-trim and btn-export wired with callbacks.onTrim?.() optional chaining — tapping closes the sheet as a no-op until Plan 02/03
 
+**Phase 6 Plan 02 decisions:**
+- [Phase 06-audio-operations]: showTrimToast accepts nullable onUndo — null omits Undo button (used for 'Kein Ton gefunden' case); simpler than a separate showInfoToast function
+- [Phase 06-audio-operations]: audioBufferCache exported from player.ts so handleTrim in main.ts can access it directly without re-decode
+- [Phase 06-audio-operations]: handleTrim decodes AudioBuffer on-demand if cache miss — prevents 'no buffer' error on first-play-trim
+- [Phase 06-audio-operations]: Auto-trim uses .catch(console.error) pattern — failure is non-fatal, tile remains fully usable
+
 ### Pending Todos
 
 None.
@@ -86,5 +93,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 6 Plan 01 complete — shared foundation (SlotRecord trim fields, action sheet Trim + Export buttons)
-Resume with: `/gsd:execute-phase 6` (next: Phase 6 Plan 02 — silence trim implementation)
+Stopped at: Phase 6 Plan 02 complete — silence trim implementation (TRIM-01 complete)
+Resume with: `/gsd:execute-phase 6` (next: Phase 6 Plan 03 — export/share implementation)

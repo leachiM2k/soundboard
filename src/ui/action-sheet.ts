@@ -6,6 +6,8 @@ export interface ActionSheetCallbacks {
   onRename: () => void;
   onDelete: () => void;
   onColorChange: (color: string | undefined) => void;
+  onTrim?: () => void;    // NEW: trigger silence trim
+  onExport?: () => void;  // NEW: trigger clip export
 }
 
 /**
@@ -84,6 +86,8 @@ export function showActionSheet(
 
   wireBtn('btn-rerecord', callbacks.onReRecord);
   wireBtn('btn-rename', callbacks.onRename);
+  wireBtn('btn-trim', () => { callbacks.onTrim?.(); });
+  wireBtn('btn-export', () => { callbacks.onExport?.(); });
   wireBtn('btn-delete', () => {
     showConfirmDialog('Sound löschen?').then((confirmed) => {
       if (confirmed) callbacks.onDelete();

@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-23 after v1.1 milestone start)
 ## Current Position
 
 Milestone: v1.1 — UX-Polish + Neue Fähigkeiten
-Phase: 6 of 6 (Audio Operations) — IN PROGRESS
-Plan: 3 of 3 in current phase — AWAITING CHECKPOINT (human-verify Task 3)
-Status: Phase 6 Plan 03 auto-tasks complete — SHARE-01 share.ts created, onExport wired in main.ts; awaiting iPhone device verification (Task 3 checkpoint)
-Last activity: 2026-02-23 — Phase 6 Plan 03 auto-tasks done (SHARE-01 code complete); pending device verification
+Phase: 6 of 6 (Audio Operations) — COMPLETE
+Plan: 3 of 3 in current phase — COMPLETE
+Status: v1.1 milestone complete — all 7 requirements (TRIM-01, SHARE-01, UX-01, UX-02, UX-03, VIZ-01, COLOR-01) verified on real iPhone Safari
+Last activity: 2026-02-23 — Phase 6 Plan 03 complete; TRIM-01 + SHARE-01 device-verified; post-checkpoint format fix (480f3b9) applied
 
-Progress: [████████░░] ~85% (v1.1, 8 of ~9 plans)
+Progress: [██████████] 100% (v1.1, 9 of 9 plans)
 
 ## Performance Metrics
 
@@ -34,6 +34,7 @@ Progress: [████████░░] ~85% (v1.1, 8 of ~9 plans)
 | 05-visual-feedback | 02 | ~30min | 3 | 4 |
 | 06-audio-operations | 01 | ~1min | 2 | 3 |
 | 06-audio-operations | 02 | 2min | 3 | 5 |
+| 06-audio-operations | 03 | ~30min | 3 | 3 |
 
 ## Accumulated Context
 
@@ -87,17 +88,19 @@ All v1.0 decisions carried forward.
 - [Phase 06-audio-operations]: triggerDownload is internal (non-exported) — only reachable from share.ts, keeps module surface clean
 - [Phase 06-audio-operations]: isStandaloneMode() exported separately — allows callers to check standalone status independently if needed
 
+**Phase 6 Plan 03 post-checkpoint decisions:**
+- [Phase 06-audio-operations]: format.ts reordered to prefer audio/mp4 over audio/webm — iOS 16+ Safari added webm support to MediaRecorder; without reordering, new iOS 16+ recordings would be webm (incompatible with WhatsApp and native players); mp4 (AAC/M4A) is universally compatible
+
 ### Pending Todos
 
 None.
 
 ### Blockers/Concerns
 
-- Phase 6 (Export): Web Share Level 2 file attachment on iOS 15+ and standalone PWA download behavior must be verified on device
-- Phase 5 blocker CLEARED: AnalyserNode data feed on iOS 14.x confirmed working on real device
+None — v1.1 milestone complete. All requirements verified on device.
 
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 6 Plan 03 checkpoint — awaiting iPhone device verification (TRIM-01 + SHARE-01)
-Resume with: `/gsd:execute-phase 6` (continue Phase 6 Plan 03 Task 3 after device verification)
+Stopped at: Completed 06-03-PLAN.md — Phase 6 and v1.1 milestone complete
+Resume with: N/A — v1.1 milestone fully shipped

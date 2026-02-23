@@ -135,12 +135,13 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
         },
       );
 
-      // Start frequency bar visualizer (stream is in scope from getMicrophoneStream())
-      startRecordingViz(index, stream);
       // Acquire wake lock after recording has started (non-blocking)
       void acquireWakeLock();
       transitionTile(appState, index, 'recording', { activeRecording });
       updateTile(index, appState.tiles[index]);
+      // Start frequency bar visualizer AFTER updateTile — updateTile replaces innerHTML,
+      // which would remove a canvas appended before it.
+      startRecordingViz(index, stream);
       break;
     }
 

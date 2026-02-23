@@ -53,6 +53,7 @@ export async function playBlob(
   tileIndex: number,
   blob: Blob,
   onEnded: () => void,
+  onStarted?: (startCtxTime: number, durationSec: number) => void,
 ): Promise<void> {
   const ctx = getAudioContext();
 
@@ -90,6 +91,8 @@ export async function playBlob(
 
   activeNodes.set(tileIndex, source);
   source.start(0); // Start immediately
+  const startCtxTime = ctx.currentTime; // capture AFTER start() — most accurate
+  onStarted?.(startCtxTime, audioBuffer.duration);
 }
 
 /**

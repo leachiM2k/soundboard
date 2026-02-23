@@ -4,9 +4,9 @@
 // Never hardcode a MIME type — it WILL fail on at least one major browser.
 
 const PREFERRED_MIME_TYPES = [
-  'audio/webm;codecs=opus', // Chrome, Firefox, Edge (best quality/size)
+  'audio/mp4',              // iOS Safari + iOS 16+ (AAC inside MP4 — universally compatible)
+  'audio/webm;codecs=opus', // Chrome, Firefox, Edge
   'audio/webm',             // Chrome fallback
-  'audio/mp4',              // iOS Safari (AAC inside MP4 container)
   'audio/ogg;codecs=opus',  // Firefox fallback
 ] as const;
 

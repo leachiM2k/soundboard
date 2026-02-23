@@ -1,4 +1,5 @@
 import { formatDuration } from './tile';
+import { showConfirmDialog } from './confirm-dialog';
 
 export interface ActionSheetCallbacks {
   onReRecord: () => void;
@@ -48,7 +49,11 @@ export function showActionSheet(
 
   wireBtn('btn-rerecord', callbacks.onReRecord);
   wireBtn('btn-rename', callbacks.onRename);
-  wireBtn('btn-delete', callbacks.onDelete);
+  wireBtn('btn-delete', () => {
+    showConfirmDialog('Sound löschen?').then((confirmed) => {
+      if (confirmed) callbacks.onDelete();
+    });
+  });
   wireBtn('btn-cancel', () => {}); // cancel just closes
 
   // Close on backdrop click (Pitfall 6 from research)

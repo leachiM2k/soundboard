@@ -14,6 +14,8 @@ body {
   display: flex;
   flex-direction: column;
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  /* Push all content below the notch / status bar in PWA standalone mode */
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 #app {
@@ -40,7 +42,6 @@ body {
   grid-template-rows: repeat(3, 1fr);
   gap: var(--gap);
   padding: var(--gap);
-  padding-top: calc(var(--gap) + env(safe-area-inset-top, 0px));
   padding-bottom: calc(var(--gap) + var(--safe-bottom));
   flex: 1;
   min-height: 0;
@@ -174,7 +175,9 @@ body {
 /* ── Action Sheet Dialog ───────────────────────────────────────── */
 #action-sheet {
   position: fixed;
-  bottom: 0;
+  /* Extend below the viewport by safe-area-inset-bottom so the background
+     fills the home-indicator zone; padding-bottom compensates for content. */
+  bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
   top: auto;

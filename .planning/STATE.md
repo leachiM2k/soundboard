@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-23 after v1.1 milestone start)
 ## Current Position
 
 Milestone: v1.1 — UX-Polish + Neue Fähigkeiten
-Phase: 5 of 6 (Visual Feedback) — COMPLETE
-Plan: 2 of 2 in current phase — COMPLETE
-Status: Phase 5 complete — Plans 01 and 02 done (VIZ-01, UX-03)
-Last activity: 2026-02-23 — Phase 5 Plan 02 complete (playback progress ring, UX-03); both features verified on iPhone Safari
+Phase: 6 of 6 (Audio Operations) — IN PROGRESS
+Plan: 1 of 3 in current phase — COMPLETE
+Status: Phase 6 Plan 01 complete — shared foundation (SlotRecord trim fields, action sheet Trim + Export buttons)
+Last activity: 2026-02-23 — Phase 6 Plan 01 complete (TRIM-01/SHARE-01 foundation); trim/export buttons wired in action sheet
 
-Progress: [█████░░░░░] ~56% (v1.1, 5 of ~9 plans)
+Progress: [██████░░░░] ~67% (v1.1, 6 of ~9 plans)
 
 ## Performance Metrics
 
@@ -32,6 +32,7 @@ Progress: [█████░░░░░] ~56% (v1.1, 5 of ~9 plans)
 | 04-foundation | 03 | 2min | 2 | 5 |
 | 05-visual-feedback | 01 | 2min | 2 | 3 |
 | 05-visual-feedback | 02 | ~30min | 3 | 4 |
+| 06-audio-operations | 01 | ~1min | 2 | 3 |
 
 ## Accumulated Context
 
@@ -68,6 +69,11 @@ All v1.0 decisions carried forward.
 - [Phase 05-visual-feedback]: playBlob onStarted parameter is optional (4th arg) — backward-compatible, 3-argument callers unchanged
 - [Phase 05-visual-feedback]: startRecordingViz must be called after updateTile — updateTile replaces innerHTML and would remove the canvas (bug fix a6600a6)
 
+**Phase 6 Plan 01 decisions:**
+- [Phase 06-audio-operations]: trimStartSec? and trimEndSec? are optional on SlotRecord — pre-Phase-6 records load with undefined fields, no migration needed (same pattern as color? in Phase 4)
+- [Phase 06-audio-operations]: onTrim? and onExport? are optional on ActionSheetCallbacks — existing callers in main.ts compile unchanged until Plans 02/03 wire the handlers
+- [Phase 06-audio-operations]: btn-trim and btn-export wired with callbacks.onTrim?.() optional chaining — tapping closes the sheet as a no-op until Plan 02/03
+
 ### Pending Todos
 
 None.
@@ -80,5 +86,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 5 Plan 02 complete — playback progress ring (UX-03); Phase 5 fully complete
-Resume with: `/gsd:execute-phase 6` (next: Phase 6 — Export)
+Stopped at: Phase 6 Plan 01 complete — shared foundation (SlotRecord trim fields, action sheet Trim + Export buttons)
+Resume with: `/gsd:execute-phase 6` (next: Phase 6 Plan 02 — silence trim implementation)

@@ -21,11 +21,11 @@
 
 ### TRIM — Audio-Bearbeitung
 
-- [ ] **TRIM-01**: App schneidet Stille vom Anfang und Ende eines Clips automatisch nach der Aufnahme ab; Nutzer erhält "Trim applied"-Feedback mit Undo-Option
+- [x] **TRIM-01**: App schneidet Stille vom Anfang und Ende eines Clips automatisch nach der Aufnahme ab; Nutzer erhält "Trim applied"-Feedback mit Undo-Option
 
 ### SHARE — Export
 
-- [ ] **SHARE-01**: Nutzer kann einen Clip via iOS Share Sheet teilen oder als Datei herunterladen; Export über Long-Press-Menü erreichbar; Fallback für ältere iOS-Versionen
+- [x] **SHARE-01**: Nutzer kann einen Clip via iOS Share Sheet teilen oder als Datei herunterladen; Export über Long-Press-Menü erreichbar; Fallback für ältere iOS-Versionen
 
 ## v2 Requirements
 
@@ -61,8 +61,8 @@
 | COLOR-01 | Phase 4 | Complete |
 | VIZ-01 | Phase 5 | Complete |
 | UX-03 | Phase 5 | Complete |
-| TRIM-01 | Phase 6 | Pending |
-| SHARE-01 | Phase 6 | Pending |
+| TRIM-01 | Phase 6 | Complete |
+| SHARE-01 | Phase 6 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 7 total

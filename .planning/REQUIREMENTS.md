@@ -8,7 +8,7 @@
 ### UX — Grundlegende Verbesserungen
 
 - [ ] **UX-01**: Nutzer sieht einen Bestätigungs-Dialog bevor ein Sound gelöscht wird
-- [ ] **UX-02**: Nutzer sieht Clip-Dauer (z.B. "2.4s") als Badge auf belegten Tiles in allen relevanten States (has-sound, playing)
+- [x] **UX-02**: Nutzer sieht Clip-Dauer (z.B. "2.4s") als Badge auf belegten Tiles in allen relevanten States (has-sound, playing)
 - [ ] **UX-03**: Nutzer sieht einen Fortschritts-Ring oder -Balken auf der Tile während der Wiedergabe; zeigt den Abspielfortschritt in Echtzeit
 
 ### VIZ — Visualisierung
@@ -57,7 +57,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | UX-01 | Phase 4 | Pending |
-| UX-02 | Phase 4 | Pending |
+| UX-02 | Phase 4 | Complete |
 | COLOR-01 | Phase 4 | Pending |
 | VIZ-01 | Phase 5 | Pending |
 | UX-03 | Phase 5 | Pending |

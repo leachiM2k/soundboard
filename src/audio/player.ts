@@ -39,7 +39,8 @@ const activeNodes = new Map<number, AudioBufferSourceNode>();
 // AudioBuffer cache: decode on first play, reuse on subsequent plays.
 // Avoids re-decoding the same blob repeatedly (decode takes ~10-50ms).
 // Cache is keyed by tile index — cleared when a tile's recording is deleted or replaced.
-const audioBufferCache = new Map<number, AudioBuffer>();
+// Exported so trim.ts callers in main.ts can access the cached AudioBuffer without re-decoding.
+export const audioBufferCache = new Map<number, AudioBuffer>();
 
 /**
  * Play the audio blob for the given tile.
@@ -54,6 +55,8 @@ export async function playBlob(
   blob: Blob,
   onEnded: () => void,
   onStarted?: (startCtxTime: number, durationSec: number) => void,
+  trimStartSec = 0,
+  trimEndSec?: number,
 ): Promise<void> {
   const ctx = getAudioContext();
 
@@ -90,9 +93,11 @@ export async function playBlob(
   };
 
   activeNodes.set(tileIndex, source);
-  source.start(0); // Start immediately
+  const effectiveEnd = trimEndSec ?? audioBuffer.duration;
+  const playDuration = effectiveEnd - trimStartSec;
+  source.start(0, trimStartSec, playDuration); // Start immediately with trim offsets
   const startCtxTime = ctx.currentTime; // capture AFTER start() — most accurate
-  onStarted?.(startCtxTime, audioBuffer.duration);
+  onStarted?.(startCtxTime, playDuration); // pass trimmed duration to progress ring
 }
 
 /**

@@ -456,3 +456,15 @@ body {
   pointer-events: none;
   border-radius: var(--radius, 16px);
 }
+
+/* UX-03: Playback progress ring overlay */
+.tile-progress-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 52px;
+  height: 52px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  overflow: visible;
+}

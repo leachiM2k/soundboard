@@ -9,6 +9,7 @@ import { showRenameDialog } from './ui/rename-dialog';
 import { showInstallBanner } from './ui/install-banner';
 import { acquireWakeLock, releaseWakeLock } from './audio/wake-lock';
 import { startRecordingViz, stopRecordingViz } from './ui/viz-recording';
+import { startPlaybackProgress, stopPlaybackProgress } from './ui/viz-playback';
 
 const appState: AppState = createAppState();
 
@@ -168,11 +169,16 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
       try {
         await playBlob(index, record.blob, () => {
           // onEnded: playback completed naturally
+          stopPlaybackProgress(index); // Path 1: has-sound onEnded — remove ring before transition
           transitionTile(appState, index, 'has-sound', { record });
           updateTile(index, appState.tiles[index]);
+        }, (startCtxTime, durationSec) => {
+          // onStarted: audio hardware started — begin progress ring
+          startPlaybackProgress(index, startCtxTime, durationSec);
         });
       } catch (err: unknown) {
         console.error('playBlob failed (defective blob):', err);
+        stopPlaybackProgress(index); // Path 2: has-sound catch — remove ring on error
         // KEEP the record in IndexedDB — do NOT delete it (locked decision)
         transitionTile(appState, index, 'error', {
           errorMessage: 'Wiedergabe fehlgeschlagen. Datei defekt.',
@@ -191,16 +197,22 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
         return;
       }
       // Stop current playback, then restart from the beginning (PLAY-02)
+      stopPlaybackProgress(index); // Path 3: playing re-tap — remove old ring before stopTile
       stopTile(index);
       transitionTile(appState, index, 'playing', { record });
       updateTile(index, appState.tiles[index]);
       try {
         await playBlob(index, record.blob, () => {
+          stopPlaybackProgress(index); // Path 4: playing onEnded — remove ring before transition
           transitionTile(appState, index, 'has-sound', { record });
           updateTile(index, appState.tiles[index]);
+        }, (startCtxTime, durationSec) => {
+          // onStarted: new playback started — begin fresh progress ring
+          startPlaybackProgress(index, startCtxTime, durationSec);
         });
       } catch (err: unknown) {
         console.error('playBlob failed on re-tap (defective blob):', err);
+        stopPlaybackProgress(index); // Path 5: playing catch — remove ring on error
         transitionTile(appState, index, 'error', {
           errorMessage: 'Wiedergabe fehlgeschlagen. Datei defekt.',
           record,

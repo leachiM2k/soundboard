@@ -70,9 +70,13 @@ export function buildTileContent(index: number, tile: TileData): string {
 
     case 'playing': {
       const label = tile.label ?? `Slot ${index + 1}`;
+      const dur = tile.record?.durationSeconds != null
+        ? `<span class="tile-duration">${formatDuration(tile.record.durationSeconds)}</span>`
+        : '';
       return `
         <span class="tile-icon">▶</span>
         <span class="tile-label">${escapeHtml(label)}</span>
+        ${dur}
       `;
     }
 

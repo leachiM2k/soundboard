@@ -1,405 +1,592 @@
 # Architecture Research
 
-**Domain:** PWA Soundboard — single-screen audio recorder/player for iPhone
-**Researched:** 2026-02-22
-**Confidence:** HIGH (core audio pipeline, IndexedDB) / MEDIUM (iOS edge cases)
-
-## Standard Architecture
-
-### System Overview
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          UI Layer (DOM)                                  │
-│                                                                          │
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐   ×9 tiles                │
-│  │  TileView │  │  TileView │  │  TileView │   (empty / recorded)       │
-│  │  (empty)  │  │(recording)│  │ (has sound)│                           │
-│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘                           │
-│        │              │              │                                   │
-│        └──────────────┴──────────────┘                                  │
-│                        │ events (tap, long-press)                        │
-├────────────────────────┼────────────────────────────────────────────────┤
-│                   State Controller                                       │
-│            (9-slot array, current mode per tile)                        │
-│                        │                                                 │
-│         ┌──────────────┼──────────────┐                                 │
-│         ↓              ↓              ↓                                  │
-├─────────────────┬──────────────┬──────────────────────────────────────┤
-│  Audio Pipeline │  Storage API │         Service Worker               │
-│                 │              │                                        │
-│ ┌─────────────┐ │ ┌──────────┐ │  ┌──────────────────────────────┐   │
-│ │  Recorder   │ │ │IndexedDB │ │  │  Cache: App Shell (HTML/CSS/ │   │
-│ │ (MediaRec.) │ │ │ (idb-    │ │  │  JS) → Cache-First           │   │
-│ └──────┬──────┘ │ │  keyval) │ │  │                              │   │
-│        ↓        │ └──────────┘ │  │  Audio blobs: NOT cached by  │   │
-│ ┌─────────────┐ │              │  │  SW — stored in IndexedDB     │   │
-│ │  Player     │ │              │  └──────────────────────────────┘   │
-│ │ (Web Audio) │ │              │                                        │
-│ └─────────────┘ │              │                                        │
-└─────────────────┴──────────────┴──────────────────────────────────────┘
-```
-
-### Component Responsibilities
-
-| Component | Responsibility | Communicates With |
-|-----------|----------------|-------------------|
-| `TileView` (×9) | Render tile state (empty/recording/has-sound), handle tap and long-press events | State Controller (events up, state down) |
-| `State Controller` | Single source of truth: 9-slot array of `{ id, state, audioBlob? }`, orchestrates all transitions | TileView (render updates), Audio Pipeline, Storage API |
-| `Recorder` | Acquire microphone, manage MediaRecorder lifecycle, emit final Blob on stop | State Controller (receives start/stop, emits blob) |
-| `Player` | Decode stored Blob via Web Audio API, play with low latency through shared AudioContext | State Controller (receives play command + blob) |
-| `Storage API` | Wrap IndexedDB via idb-keyval: read all slots on boot, persist blob+metadata on save, delete on remove | State Controller (called after state transitions) |
-| `ContextMenu` | Render long-press overlay with Delete/Re-record options | State Controller (dispatches chosen action) |
-| `Service Worker` | Precache app shell (HTML, CSS, JS, manifest, icons) for offline use | Browser cache (install-time), does NOT touch audio blobs |
+**Domain:** PWA Soundboard v1.1 — Feature Integration into Existing Vanilla TS Architecture
+**Researched:** 2026-02-23
+**Confidence:** HIGH (integration points, data model) / MEDIUM (iOS AnalyserNode, AudioBuffer export) / LOW (audio/mp4 re-encoding path)
 
 ---
 
-## Recommended Project Structure
+## v1.1 Integration Overview
+
+This document focuses on how 7 new features integrate with the existing v1.0 architecture. It extends (not replaces) the v1.0 ARCHITECTURE.md. The existing module boundaries are sound and should be preserved.
+
+### Updated System Overview
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                           UI Layer (DOM)                                  │
+│                                                                           │
+│  ┌──────────────────────────────────────────────────────────────────┐    │
+│  │  TileView (×9)   [tile.ts]                                        │    │
+│  │  - empty / recording / saving / has-sound / playing / error       │    │
+│  │  - NEW: color badge (--tile-color from SlotRecord.color)          │    │
+│  │  - NEW: duration badge (from SlotRecord.durationSeconds)  [done]  │    │
+│  │  - NEW: progress bar overlay (playing state only)                 │    │
+│  │  - NEW: canvas waveform overlay (recording state only)            │    │
+│  └───────────────────────────┬──────────────────────────────────────┘    │
+│                               │ tap / long-press                          │
+│  ┌──────────────────────────────────────────────────────────────────┐    │
+│  │  ActionSheet  [action-sheet.ts]                                   │    │
+│  │  - existing: Re-record / Rename / Delete                          │    │
+│  │  - NEW: Export button (triggers Web Share API)                    │    │
+│  │  - NEW: Delete with confirmation (calls confirm-dialog.ts)        │    │
+│  │  - NEW: color picker row                                          │    │
+│  └───────────────────────────┬──────────────────────────────────────┘    │
+│                               │ callbacks                                 │
+├───────────────────────────────┼───────────────────────────────────────────┤
+│                        State Controller  [state/store.ts]                  │
+│   TileData adds: color?: string  (mirrored from SlotRecord)               │
+│   SlotRecord adds: color?: string                                          │
+├───────────────────────────────┬───────────────────────────────────────────┤
+│                               │                                            │
+│        ┌──────────────────────┼──────────────────┐                        │
+│        ↓                      ↓                  ↓                         │
+│  ┌───────────────┐  ┌──────────────────┐  ┌────────────────────────┐     │
+│  │  audio/       │  │  storage/db.ts   │  │  NEW audio/trimmer.ts  │     │
+│  │  recorder.ts  │  │  SlotRecord +=   │  │  AudioBuffer slice     │     │
+│  │  + analyser   │  │  color?: string  │  │  → re-encode → Blob    │     │
+│  │  node hookup  │  │                  │  │  (see TRIM-01 notes)   │     │
+│  │               │  │                  │  └────────────────────────┘     │
+│  │  player.ts    │  │                  │                                   │
+│  │  + playback   │  │                  │  NEW audio/exporter.ts           │
+│  │  start time   │  │                  │  navigator.share(file)            │
+│  │  tracking     │  │                  │  + download fallback              │
+│  └───────────────┘  └──────────────────┘                                  │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Feature-by-Feature Integration Analysis
+
+### Feature 1: Waveform Visualizer During Recording (VIZ-01)
+
+**What changes:** `recorder.ts` (NEW: export AnalyserNode), `tile.ts` (NEW: canvas overlay), `main.ts` (wire analyser → RAF loop)
+
+**Integration approach:**
+
+1. In `recorder.ts` — after `getMicrophoneStream()` returns a stream, create an `AnalyserNode` from the shared `AudioContext`, connect via `createMediaStreamSource(stream)`, and return it alongside the `ActiveRecording` handle.
+
+2. In `main.ts` recording start block — receive the AnalyserNode, insert a `<canvas>` into the tile DOM (or inject it inside the `tile--recording` content built by `tile.ts`), run a `requestAnimationFrame` loop calling `analyser.getByteTimeDomainData()` and drawing to the canvas. Stop the loop in `onComplete`.
+
+3. In `tile.ts` `buildTileContent` for state `'recording'` — add a `<canvas id="waveform-${index}">` element alongside the existing elapsed/remaining timers.
+
+**iOS Safari constraint — MEDIUM confidence:** `AnalyserNode` connected to a `MediaStreamAudioSourceNode` has had known issues on iOS Safari (getByteTimeDomainData returning flat data in older WebKit builds). The known workaround is to connect the analyser to the existing shared `AudioContext` rather than creating a new context. Use `audioContext.createMediaStreamSource(stream)` where `audioContext` is the singleton from `player.ts` (via `getAudioContext()`). This is required — the iOS 4-context limit means a second AudioContext for recording is a hard blocker.
+
+**Graceful degradation:** If `getByteTimeDomainData()` returns all-128 values (the flat-line iOS bug), the canvas draws a flat line — acceptable UX since the pulsing recording indicator still communicates activity. Do not block the recording flow on waveform failure.
+
+**Files changed:**
+| File | Change Type | What |
+|------|------------|------|
+| `src/audio/recorder.ts` | MODIFY | Export `AnalyserNode` from `getMicrophoneStream()` or `startRecording()`, connected to shared AudioContext |
+| `src/ui/tile.ts` | MODIFY | Add `<canvas>` element to `'recording'` state content |
+| `src/main.ts` | MODIFY | Start/stop RAF waveform loop in recording start/stop handlers |
+
+**New files:** None — this is wiring of existing Web APIs within existing modules.
+
+---
+
+### Feature 2: Delete Confirmation Dialog (UX-01)
+
+**What changes:** `action-sheet.ts` (change delete callback), new `ui/confirm-dialog.ts`
+
+**Integration approach:**
+
+1. Create `src/ui/confirm-dialog.ts` — a `showConfirmDialog(message): Promise<boolean>` function following the exact same `<dialog>` pattern used by `rename-dialog.ts`. Returns `true` on confirm, `false` on cancel.
+
+2. In `action-sheet.ts`, wrap the existing `onDelete` callback: when the Delete button is clicked, close the action sheet, open the confirm dialog, and only call the real `onDelete()` callback if the user confirms.
+
+3. Add `<dialog id="confirm-dialog">` to `index.html` with confirm/cancel buttons.
+
+**iOS Safari constraint:** Same dialog pattern already proven in v1.0. No new constraints. Use `dialog.showModal()` not custom overlays. Clone-before-wire pattern already in `action-sheet.ts` prevents stale listener accumulation.
+
+**Files changed:**
+| File | Change Type | What |
+|------|------------|------|
+| `src/ui/action-sheet.ts` | MODIFY | Wrap onDelete to call confirm-dialog first |
+| `index.html` | MODIFY | Add `<dialog id="confirm-dialog">` markup |
+
+**New files:**
+| File | What |
+|------|------|
+| `src/ui/confirm-dialog.ts` | `showConfirmDialog(message): Promise<boolean>` |
+
+---
+
+### Feature 3: Clip Duration Badge (UX-02)
+
+**Status: Substantially already implemented.** `SlotRecord.durationSeconds` exists in `db.ts`. `tile.ts` `buildTileContent` already renders `<span class="tile-duration">` for `has-sound` state when `durationSeconds != null`. `main.ts` already saves `durationSeconds` on recording completion.
+
+**Remaining gap:** The `'playing'` state's `buildTileContent` branch does not render the duration badge (it was stripped out). Minor fix to `tile.ts` to add duration display to the `'playing'` case as well, matching the `'has-sound'` case.
+
+**Files changed:**
+| File | Change Type | What |
+|------|------------|------|
+| `src/ui/tile.ts` | MODIFY | Add duration badge to `'playing'` case in `buildTileContent` |
+
+**New files:** None.
+
+---
+
+### Feature 4: Playback Progress Indicator (UX-03)
+
+**What changes:** `player.ts` (expose playback start time), `tile.ts` (render progress bar), `main.ts` (RAF loop for progress during playing state)
+
+**Integration approach:**
+
+The `AudioBufferSourceNode` does not expose a `currentTime` property. The standard pattern is to record `audioContext.currentTime` at `source.start(0)`, then compute progress as `(audioContext.currentTime - startTime) / audioBuffer.duration` in a RAF loop.
+
+1. In `player.ts`, modify `playBlob()` to return the playback start time (`audioContext.currentTime` at the moment `source.start()` is called) and the total `audioBuffer.duration`. Alternatively, expose a `getPlaybackProgress(tileIndex): number | null` function that computes progress from stored state.
+
+2. Preferred: export `getPlaybackInfo(tileIndex): { startedAt: number; duration: number } | null` from `player.ts`. Store `startedAt` and `duration` in the `activeNodes`-parallel map.
+
+3. In `main.ts`, when transitioning to `'playing'`, start a RAF loop that calls `getPlaybackInfo()`, computes progress `0..1`, and updates a CSS custom property `--playback-progress` or a `<div class="tile-progress-bar">` width on the tile element. Cancel the RAF when transitioning back to `'has-sound'`.
+
+4. In `tile.ts`, add `<div class="tile-progress-bar">` inside the `'playing'` state HTML. CSS sets width via inline style or CSS variable updated by the RAF loop.
+
+**Design decision:** Drive progress from `audioContext.currentTime` (the audio clock), not from `Date.now()`. The audio clock does not drift under system load; `Date.now()` can.
+
+**Files changed:**
+| File | Change Type | What |
+|------|------------|------|
+| `src/audio/player.ts` | MODIFY | Track playback start time per tile; export `getPlaybackInfo()` |
+| `src/ui/tile.ts` | MODIFY | Add progress bar element to `'playing'` state content |
+| `src/main.ts` | MODIFY | Start/stop RAF progress loop in has-sound→playing / playing→has-sound transitions |
+
+**New files:** None.
+
+---
+
+### Feature 5: Tile Colors (COLOR-01)
+
+**What changes:** `storage/db.ts` (schema: add `color?`), `state/store.ts` (TileData: add `color?`), `tile.ts` (apply color), `action-sheet.ts` (color picker), `main.ts` (handleColorChange)
+
+**Data model impact — this is the primary schema change for v1.1:**
+
+```typescript
+// storage/db.ts — updated SlotRecord
+export interface SlotRecord {
+  blob: Blob;
+  mimeType: string;
+  recordedAt: number;
+  durationSeconds?: number;
+  label?: string;
+  color?: string;  // NEW: CSS color string e.g. '#FF6B6B', undefined = use index default
+}
+```
+
+```typescript
+// state/store.ts — updated TileData
+export interface TileData {
+  state: TileState;
+  activeRecording?: ActiveRecording;
+  record?: SlotRecord;
+  errorMessage?: string;
+  warningActive?: boolean;
+  label?: string;
+  color?: string;  // NEW: synced from SlotRecord.color, applied to --tile-color CSS var
+}
+```
+
+**Backward compatibility:** `color` is `undefined` for all existing records. `tile.ts` `applyTileState` already calls `getTileColor(index)` as the default. The new behavior: if `tile.color` is set, use it; otherwise fall back to `getTileColor(index)`. Zero migration needed.
+
+**Color picker UI:** Add a horizontal scrolling row of color swatches to the action sheet HTML (not a native `<input type="color">` — too large and visually inconsistent on iOS). A set of ~8 fixed swatches plus a "remove color" option is sufficient. Wire via `ActionSheetCallbacks.onColorChange(color: string | undefined)`.
+
+**Persistence flow:** `handleColorChange` in `main.ts` → `loadSlot(index)` → `saveSlot(index, { ...record, color })` → `transitionTile` with updated color → `updateTile`.
+
+**Files changed:**
+| File | Change Type | What |
+|------|------------|------|
+| `src/storage/db.ts` | MODIFY | Add `color?: string` to `SlotRecord` |
+| `src/state/store.ts` | MODIFY | Add `color?: string` to `TileData`; preserve color in transitions |
+| `src/ui/tile.ts` | MODIFY | Use `tile.color ?? getTileColor(index)` in `applyTileState` |
+| `src/ui/action-sheet.ts` | MODIFY | Add color swatch row; add `onColorChange` callback |
+| `src/main.ts` | MODIFY | Add `handleColorChange()` handler, wire to action sheet |
+| `index.html` | MODIFY | Add color swatch HTML inside `#action-sheet` |
+
+**New files:** None — color picker is simple enough as inline HTML in the action sheet.
+
+---
+
+### Feature 6: Audio Trim (TRIM-01)
+
+**What changes:** New `audio/trimmer.ts`, `main.ts` (wire trim action), `action-sheet.ts` (Trim button)
+
+**What "trim" means here:** Per the milestone spec, trim is automatic — remove silence at start/end. This is NOT a timeline scrubber UI. Implementation uses amplitude threshold on the decoded `AudioBuffer`.
+
+**Integration approach:**
+
+1. `audio/trimmer.ts` — `trimAudio(buffer: AudioBuffer, threshold = 0.005): AudioBuffer`. Scans each channel's sample data (`buffer.getChannelData(c)`) to find the first and last sample above threshold. Creates a new `AudioBuffer` spanning only those samples using `ctx.createBuffer()` and copies channel data via `Float32Array` slices. Returns the trimmed `AudioBuffer`.
+
+2. **The hard problem — re-encoding:** A trimmed `AudioBuffer` is PCM float32 in memory. To store it in IndexedDB as a `Blob`, it must be encoded. iOS Safari has no native `AudioBuffer → Blob` encoding path except via re-recording. Options ranked by viability:
+
+   **Option A (recommended):** Re-encode to WAV in JavaScript. WAV encoding is trivial — write a 44-byte header + raw float32/int16 PCM samples. The result is a `.wav` Blob, fully decodable by `decodeAudioData` on iOS. Downside: WAV is large (~5 MB/min at 44100 Hz mono). For clips under 30 seconds this is ~2.5 MB maximum — acceptable for IndexedDB storage.
+
+   **Option B:** Use `MediaRecorder` to re-record the trimmed audio by playing it through an `OfflineAudioContext` and piping to a `MediaStreamDestination`. Complex, timing-sensitive, known iOS bugs with `OfflineAudioContext` at non-standard sample rates.
+
+   **Option C:** Use a WASM encoder (lamejs for mp3, opus-encoder). Adds ~300 KB bundle size. Overkill for this use case.
+
+   **Verdict: Option A — WAV re-encoding in JS.** Confidence: MEDIUM. WAV is widely decodable, straightforward to implement, and avoids all WASM/OfflineAudioContext complexity on iOS.
+
+3. After trim: save new Blob to IndexedDB (`saveSlot`), clear audio cache (`clearAudioCache`), update state and tile.
+
+4. The action sheet gains a "Trim" button that triggers trim flow.
+
+**Files changed:**
+| File | Change Type | What |
+|------|------------|------|
+| `src/ui/action-sheet.ts` | MODIFY | Add Trim button and `onTrim` callback |
+| `src/main.ts` | MODIFY | Add `handleTrim()` — decode → trim → WAV-encode → save |
+| `index.html` | MODIFY | Add Trim button to action sheet markup |
+
+**New files:**
+| File | What |
+|------|------|
+| `src/audio/trimmer.ts` | `trimAudio(buffer, threshold): AudioBuffer` — silence detection and AudioBuffer slice |
+| `src/audio/wav-encoder.ts` | `audioBufferToWav(buffer): Blob` — minimal WAV encoder (44-byte header + PCM int16 samples) |
+
+**iOS Safari constraint:** `AudioContext.decodeAudioData` on iOS accepts WAV files. The WAV Blob will have `mimeType: 'audio/wav'`. Update `mimeType` field in the saved `SlotRecord` accordingly.
+
+---
+
+### Feature 7: Clip Export (SHARE-01)
+
+**What changes:** `action-sheet.ts` (Export button), `main.ts` (handleExport), new `audio/exporter.ts`
+
+**Integration approach:**
+
+1. `audio/exporter.ts` — `exportClip(blob: Blob, mimeType: string, label?: string): Promise<void>`. Uses `navigator.canShare({ files: [file] })` to detect file sharing support. If supported, calls `navigator.share({ files: [file], title: label })`. Falls back to creating a temporary `<a href="objectURL" download="filename">` and simulating a click.
+
+2. The file to share is the raw `blob` from `SlotRecord`. No re-encoding needed for export — share the original recording as-is. On iOS the blob is `audio/mp4` (AAC); the share sheet will show it to compatible apps.
+
+3. **User gesture requirement:** `navigator.share()` must be called within a user gesture. The Export button tap IS a user gesture, but the action sheet `close()` → confirm dialog chain introduces `await`s that can expire the gesture context on iOS. Solution: call `exporter.exportClip()` directly inside the button click handler of the action sheet BEFORE any `await` or `dialog.close()` — or trigger export from the main tap handler without an intermediate dialog.
+
+4. **`navigator.canShare()` fallback:** If `navigator.share` is undefined or `canShare` returns false (desktop browsers), use the download anchor approach. This gives a working export on desktop too.
+
+**Files changed:**
+| File | Change Type | What |
+|------|------------|------|
+| `src/ui/action-sheet.ts` | MODIFY | Add Export button and `onExport` callback |
+| `src/main.ts` | MODIFY | Add `handleExport()` — call exporter.exportClip with tile's blob |
+| `index.html` | MODIFY | Add Export button to action sheet markup |
+
+**New files:**
+| File | What |
+|------|------|
+| `src/audio/exporter.ts` | `exportClip(blob, mimeType, label): Promise<void>` — Web Share API + download fallback |
+
+---
+
+## Data Model Changes Summary
+
+### SlotRecord (storage/db.ts) — v1.1 Schema
+
+```typescript
+export interface SlotRecord {
+  blob: Blob;
+  mimeType: string;       // existing
+  recordedAt: number;     // existing
+  durationSeconds?: number; // existing (added Phase 2)
+  label?: string;         // existing
+  color?: string;         // NEW in v1.1: user-chosen CSS color, undefined = use index default
+}
+```
+
+**Migration:** None needed. All new fields are `?` optional. Existing records missing `color` fall back to the index-based `getTileColor(index)` default in `applyTileState`.
+
+**TRIM-01 side effect:** After trimming, the saved record gets `mimeType: 'audio/wav'` instead of the original `'audio/mp4'` or `'audio/webm'`. `durationSeconds` must be recalculated from the trimmed `AudioBuffer.duration`.
+
+### TileData (state/store.ts) — v1.1 Changes
+
+```typescript
+export interface TileData {
+  state: TileState;
+  activeRecording?: ActiveRecording;
+  record?: SlotRecord;
+  errorMessage?: string;
+  warningActive?: boolean;
+  label?: string;
+  color?: string;  // NEW: synced from SlotRecord.color
+}
+```
+
+The `transitionTile` function must be updated to preserve `color` in the `'has-sound'` and `'playing'` state branches (same pattern as `label`).
+
+---
+
+## Component Boundaries After v1.1
+
+| Component | v1.0 Responsibility | v1.1 Additions |
+|-----------|--------------------|-|
+| `audio/recorder.ts` | MediaRecorder wrapper, emits Blob | Also creates + returns AnalyserNode connected to shared AudioContext |
+| `audio/player.ts` | playBlob, stopTile, clearAudioCache | Also tracks playback start time; exports `getPlaybackInfo()` |
+| `audio/trimmer.ts` | — | NEW: AudioBuffer silence detection and slice |
+| `audio/wav-encoder.ts` | — | NEW: AudioBuffer → WAV Blob encoder |
+| `audio/exporter.ts` | — | NEW: Web Share API + download fallback |
+| `storage/db.ts` | idb-keyval CRUD | Schema: add `color?` to SlotRecord |
+| `state/store.ts` | 9-slot state machine | TileData: add `color?`; transitionTile preserves color |
+| `ui/tile.ts` | Render tile state | Add: progress bar (playing), waveform canvas (recording), user color |
+| `ui/action-sheet.ts` | Re-record / Rename / Delete | Add: Export, Trim, color picker, delete-with-confirm |
+| `ui/confirm-dialog.ts` | — | NEW: `showConfirmDialog(msg): Promise<boolean>` |
+| `main.ts` | Orchestrates all events | Add handlers: handleExport, handleTrim, handleColorChange; RAF loops for waveform + progress |
+
+---
+
+## Recommended Build Order
+
+Dependencies drive the order. Schema changes must land before features that read the new fields. Audio modules must exist before UI that calls them.
+
+```
+Phase order:
+
+1. SlotRecord schema (color field)        → storage/db.ts
+   TileData schema (color field)          → state/store.ts
+   transitionTile color preservation      → state/store.ts
+   Reason: All color-related features read from SlotRecord.color.
+           Must be in place before tile rendering and action sheet changes.
+
+2. confirm-dialog.ts (new module)         → ui/confirm-dialog.ts + index.html
+   Delete confirmation wire-up            → ui/action-sheet.ts + main.ts
+   Reason: Pure UI addition, no audio deps. Smallest change, validates dialog pattern.
+
+3. Clip duration badge fix (playing state) → ui/tile.ts
+   Reason: 1-line fix, already has data, no new deps.
+
+4. Tile colors                            → ui/tile.ts + ui/action-sheet.ts + main.ts
+   Reason: Depends on Step 1 schema. Color picker is UI-only after schema lands.
+
+5. Playback progress indicator            → audio/player.ts + ui/tile.ts + main.ts
+   Reason: Modifies player.ts and tile.ts. No schema deps. Isolated RAF loop.
+
+6. Waveform visualizer                   → audio/recorder.ts + ui/tile.ts + main.ts
+   Reason: Modifies recorder.ts. Must verify AnalyserNode on real iOS device
+           before building further. iOS compat risk — validate early.
+
+7. Audio trim                             → audio/trimmer.ts + audio/wav-encoder.ts
+                                            + ui/action-sheet.ts + main.ts
+   Reason: Most complex. New modules. WAV encoder is standalone.
+           Trim result feeds into export (correct mimeType needed for exported file).
+
+8. Clip export                           → audio/exporter.ts + ui/action-sheet.ts + main.ts
+   Reason: Last because it benefits from correct mimeType after trim lands.
+           Export of untrimmed clips still works without trim.
+```
+
+### Build Order Table
+
+| Step | Feature | Files Modified | Files Created | Data Model Change |
+|------|---------|---------------|---------------|-------------------|
+| 1 | Schema: color field | `storage/db.ts`, `state/store.ts` | — | Yes — SlotRecord.color, TileData.color |
+| 2 | Delete confirmation | `action-sheet.ts`, `main.ts`, `index.html` | `ui/confirm-dialog.ts` | No |
+| 3 | Duration badge fix | `ui/tile.ts` | — | No |
+| 4 | Tile colors | `ui/tile.ts`, `action-sheet.ts`, `main.ts`, `index.html` | — | Reads Step 1 |
+| 5 | Playback progress | `audio/player.ts`, `ui/tile.ts`, `main.ts` | — | No |
+| 6 | Waveform visualizer | `audio/recorder.ts`, `ui/tile.ts`, `main.ts` | — | No |
+| 7 | Audio trim | `action-sheet.ts`, `main.ts`, `index.html` | `audio/trimmer.ts`, `audio/wav-encoder.ts` | Updates mimeType + durationSeconds on trim |
+| 8 | Clip export | `action-sheet.ts`, `main.ts`, `index.html` | `audio/exporter.ts` | No |
+
+---
+
+## New Project Structure After v1.1
 
 ```
 src/
-├── index.html               # App entry point, registers service worker
-├── manifest.json            # PWA manifest (name, icons, display: standalone)
-├── sw.js                    # Service worker — precache app shell only
-├── app.js                   # Bootstrap: init storage → render tiles → attach events
-│
-├── components/
-│   ├── tile.js              # TileView: DOM creation, state class toggling, event binding
-│   └── context-menu.js      # Long-press overlay (Delete / Re-record)
-│
 ├── audio/
-│   ├── recorder.js          # MediaRecorder wrapper: start/stop, format detection, blob emit
-│   ├── player.js            # Web Audio API wrapper: AudioContext singleton, decodeAudioData, play
-│   └── format.js            # getSupportedMimeType(): audio/mp4 on iOS, webm/opus elsewhere
-│
+│   ├── format.ts           # MIME type detection (unchanged)
+│   ├── player.ts           # MODIFIED: +getPlaybackInfo()
+│   ├── recorder.ts         # MODIFIED: +AnalyserNode from stream
+│   ├── wake-lock.ts        # unchanged
+│   ├── trimmer.ts          # NEW: AudioBuffer silence trim
+│   ├── wav-encoder.ts      # NEW: AudioBuffer → WAV Blob
+│   └── exporter.ts         # NEW: Web Share API + download fallback
+├── input/
+│   └── long-press.ts       # unchanged
 ├── state/
-│   └── store.js             # 9-slot reactive store, emits change events consumed by tile.js
-│
+│   └── store.ts            # MODIFIED: +color to TileData
 ├── storage/
-│   └── db.js                # idb-keyval wrapper: loadAll(), save(id, blob, mimeType), remove(id)
-│
-└── styles/
-    └── main.css             # Grid layout, tile states, long-press prevention CSS
+│   └── db.ts               # MODIFIED: +color to SlotRecord
+├── ui/
+│   ├── action-sheet.ts     # MODIFIED: +Export, Trim, color picker, confirm-delete
+│   ├── confirm-dialog.ts   # NEW: showConfirmDialog()
+│   ├── grid.ts             # unchanged
+│   ├── haptic.ts           # unchanged
+│   ├── install-banner.ts   # unchanged
+│   ├── rename-dialog.ts    # unchanged
+│   └── tile.ts             # MODIFIED: progress bar, waveform canvas, user color
+├── main.ts                 # MODIFIED: all new handlers + RAF loops
+└── style.css               # MODIFIED: progress bar, waveform canvas, color swatch styles
 ```
-
-### Structure Rationale
-
-- **`audio/`:** Isolates all Web API complexity. `recorder.js` and `player.js` never talk to each other directly — the state controller mediates. This lets you test or swap either independently.
-- **`state/`:** Single store prevents tiles from holding their own state, which leads to drift. Nine slots only — no normalization needed.
-- **`storage/`:** Keeps IndexedDB calls out of state and UI layers. All DB access goes through one module.
-- **`sw.js` at root:** Service worker scope must cover entire origin — placing it at root avoids scope restriction issues.
-- **No framework:** The app is a single screen with 9 elements. A framework adds 30–300 KB for zero architectural benefit here.
 
 ---
 
-## Architectural Patterns
+## iOS Safari Constraints for v1.1 Features
 
-### Pattern 1: Single AudioContext Singleton (iOS Mandatory)
+| Feature | Constraint | Mitigation |
+|---------|-----------|------------|
+| Waveform visualizer | AnalyserNode connected to MediaStreamSource may return flat data (128) on some iOS Safari versions | Draw flat line — graceful degradation; pulsing tile indicator still shows recording state |
+| Waveform visualizer | Must use shared AudioContext singleton — not a new AudioContext | Use `getAudioContext()` from `player.ts` inside recorder.ts |
+| Playback progress | AudioBufferSourceNode has no currentTime property | Track `audioContext.currentTime` at `source.start()`, compute progress in RAF loop |
+| Audio trim | No native AudioBuffer → compressed Blob path on iOS | WAV encoder in JS — large but widely decodable; acceptable for <30s clips |
+| Clip export | `navigator.share()` must fire within user gesture context | Call inside button click handler before any async `await` or dialog transitions |
+| Clip export | `navigator.share({ files })` not available on all platforms | Guard with `navigator.canShare({ files })` before calling; download fallback otherwise |
+| Delete confirm | `dialog.showModal()` from within an already-open dialog requires the first dialog to be closed first | Close action sheet before opening confirm dialog (already the pattern in action-sheet.ts) |
+| All dialogs | iOS standalone PWA: `window.prompt()` is unreliable | Already avoided in v1.0 — custom `<dialog>` elements used throughout |
 
-**What:** Create exactly one `AudioContext` per page load, unlock it on first user tap, reuse for all playback.
+---
 
-**When to use:** Always — iOS Safari hard-limits to 4 AudioContext instances per page. Creating one per tile hits the limit after 4 taps.
+## Patterns to Follow
 
-**Trade-offs:** Slightly more coordination needed to route multiple simultaneous sounds; for a 9-tile soundboard this is a non-issue since only one sound plays at a time.
+### Pattern: RAF Loop Management in main.ts
 
-**Example:**
-```javascript
-// audio/player.js
-let ctx = null;
+Both waveform and progress features require `requestAnimationFrame` loops tied to transient states (recording, playing). Use the same cleanup pattern:
 
-function getAudioContext() {
-  if (!ctx) {
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
+```typescript
+// Canonical pattern for managed RAF loops in main.ts
+let waveformRafId: number | null = null;
+
+function startWaveformLoop(analyser: AnalyserNode, canvas: HTMLCanvasElement): void {
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  function draw() {
+    analyser.getByteTimeDomainData(data);
+    // ... draw to canvas ...
+    waveformRafId = requestAnimationFrame(draw);
   }
-  return ctx;
+  waveformRafId = requestAnimationFrame(draw);
 }
 
-// Called from first user interaction handler BEFORE any playback
-export async function unlockAudio() {
-  const context = getAudioContext();
-  if (context.state === 'suspended') {
-    await context.resume();
+function stopWaveformLoop(): void {
+  if (waveformRafId !== null) {
+    cancelAnimationFrame(waveformRafId);
+    waveformRafId = null;
   }
 }
-
-export async function playBlob(blob) {
-  const context = getAudioContext();
-  const arrayBuffer = await blob.arrayBuffer();
-  const audioBuffer = await context.decodeAudioData(arrayBuffer);
-  const source = context.createBufferSource();
-  source.buffer = audioBuffer;
-  source.connect(context.destination);
-  source.start(0);
-}
+// Stop in recording onComplete callback and in stopTile path
 ```
 
-### Pattern 2: Format Detection Before Recording
+The same pattern applies to progress tracking. Both loops are cancelled in the state transition that ends the respective state (recording → saving, playing → has-sound).
 
-**What:** Call `MediaRecorder.isTypeSupported()` at startup to pick the best supported format, store the MIME type alongside the blob.
+### Pattern: WAV Encoder (Minimal, No Dependencies)
 
-**When to use:** Always — iOS Safari only supports `audio/mp4` (AAC). Chrome/Firefox support `audio/webm;codecs=opus`. The wrong assumption will silently produce unplayable blobs or throw at record time.
+```typescript
+// audio/wav-encoder.ts — canonical minimal PCM WAV encoder
+export function audioBufferToWav(buffer: AudioBuffer): Blob {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const numSamples = buffer.length;
+  const bytesPerSample = 2; // int16
+  const dataSize = numChannels * numSamples * bytesPerSample;
 
-**Trade-offs:** A few extra lines of detection logic; necessary complexity, not accidental.
+  const arrayBuffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(arrayBuffer);
 
-**Example:**
-```javascript
-// audio/format.js
-const PREFERRED_TYPES = [
-  'audio/webm;codecs=opus',  // Chrome, Firefox, Safari 18.4+
-  'audio/mp4',               // iOS Safari (AAC inside MP4)
-  'audio/ogg;codecs=opus',   // Firefox fallback
-  'audio/webm',              // Chrome fallback
-];
+  // RIFF header
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);           // PCM chunk size
+  view.setUint16(20, 1, true);            // PCM format
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numChannels * bytesPerSample, true);
+  view.setUint16(32, numChannels * bytesPerSample, true);
+  view.setUint16(34, 16, true);           // bits per sample
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
 
-export function getSupportedMimeType() {
-  for (const type of PREFERRED_TYPES) {
-    if (MediaRecorder.isTypeSupported(type)) return type;
+  // Interleaved PCM samples (float32 → int16 clamp)
+  let offset = 44;
+  for (let i = 0; i < numSamples; i++) {
+    for (let c = 0; c < numChannels; c++) {
+      const sample = Math.max(-1, Math.min(1, buffer.getChannelData(c)[i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      offset += 2;
+    }
   }
-  return ''; // Let browser choose default
+
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
 }
 ```
 
-The `mimeType` string is stored in IndexedDB alongside the blob, then passed to `new Blob([...chunks], { type: mimeType })` at stop time, and used when constructing the blob for `decodeAudioData`.
+### Pattern: Color Application in applyTileState
 
-### Pattern 3: Tap-to-Toggle Recording (State Machine per Tile)
-
-**What:** Each tile slot has an explicit state machine: `empty → recording → saving → has-sound`. The state controller manages transitions; the UI reflects state via CSS classes only.
-
-**When to use:** Always for interaction correctness. Without explicit states, double-taps or concurrent recordings cause race conditions.
-
-**States:**
-```
-empty       → [tap] → recording
-recording   → [tap] → saving (async: stop recorder, wait for blob, write to IDB)
-saving      → [done] → has-sound
-has-sound   → [tap] → playing (transient, auto-returns to has-sound)
-has-sound   → [long-press → delete] → empty
-has-sound   → [long-press → re-record] → recording
-```
-
-**Constraint:** Only one tile can be in `recording` state at a time (single microphone).
-
-### Pattern 4: Blob-in-IndexedDB (Not Cache API)
-
-**What:** User-recorded audio blobs are stored in IndexedDB, not in the Cache API or service worker caches.
-
-**When to use:** Always for user-generated persistent data. Cache API is designed for HTTP response caching and has 7-day eviction on iOS Safari for inactive PWAs. IndexedDB is the correct persistent store for application data.
-
-**Schema:**
-```javascript
-// storage/db.js — using idb-keyval (573 bytes brotli'd, zero dependencies)
-// Store name: 'soundboard'
-// Key: slot index (0–8)
-// Value: { blob: Blob, mimeType: string, recordedAt: number }
-
-import { get, set, del, entries } from 'idb-keyval';
-
-export async function loadAll() {
-  // Returns array of [key, value] pairs for all 9 slots
-  return entries();
-}
-
-export async function save(slotIndex, blob, mimeType) {
-  await set(slotIndex, { blob, mimeType, recordedAt: Date.now() });
-}
-
-export async function remove(slotIndex) {
-  await del(slotIndex);
+```typescript
+// ui/tile.ts — updated applyTileState color logic
+function applyTileState(el: HTMLElement, index: number, tile: TileData): void {
+  // ...existing class logic...
+  if (tile.state === 'has-sound' || tile.state === 'playing') {
+    // User color takes precedence over index-based default
+    const color = tile.color ?? getTileColor(index);
+    el.style.setProperty('--tile-color', color);
+  } else {
+    el.style.removeProperty('--tile-color');
+  }
+  el.innerHTML = buildTileContent(index, tile);
 }
 ```
 
 ---
 
-## Data Flow
+## Anti-Patterns to Avoid in v1.1
 
-### Record Flow
+### Anti-Pattern: Creating a Second AudioContext for the AnalyserNode
 
-```
-User taps empty tile
-     ↓
-TileView emits 'tile:tap' event → State Controller
-     ↓
-State Controller: slot[i].state = 'recording'
-     ↓
-Recorder.start(mimeType) — getUserMedia() prompt if first time
-     ↓
-TileView re-renders tile with 'recording' class (pulsing indicator)
-     ↓
-User taps tile again
-     ↓
-TileView emits 'tile:tap' event → State Controller
-     ↓
-State Controller: slot[i].state = 'saving'
-     ↓
-Recorder.stop() → MediaRecorder fires onstop → assembles Blob from chunks
-     ↓
-Storage.save(i, blob, mimeType)  [async, awaited]
-     ↓
-State Controller: slot[i].state = 'has-sound', slot[i].blob = blob
-     ↓
-TileView re-renders tile with 'has-sound' class
-```
+**What:** Creating `new AudioContext()` in `recorder.ts` to host the analyser.
+**Why bad:** Hits iOS 4-context limit after 4 recording sessions. The analyser must connect to the same shared context as the player.
+**Do instead:** Import `getAudioContext()` from `player.ts` into `recorder.ts`, or extract the singleton to a shared `audio/context.ts` module (recommended if the cross-import feels odd).
 
-### Play Flow
+### Anti-Pattern: Blocking Recording on Waveform Availability
 
-```
-User taps has-sound tile
-     ↓
-TileView emits 'tile:tap' → State Controller
-     ↓
-State Controller calls Player.playBlob(slot[i].blob)
-     ↓
-Player: blob.arrayBuffer() → AudioContext.decodeAudioData() → BufferSourceNode.start()
-     ↓
-Sound plays; tile gets transient 'playing' class (optional visual feedback)
-```
+**What:** Throwing or refusing to start recording if `AnalyserNode.getByteTimeDomainData()` is unavailable.
+**Why bad:** AnalyserNode has known iOS Safari issues. Recording is the core feature; visualization is enhancement.
+**Do instead:** Graceful degradation — start recording regardless, draw flat line if data is flat.
 
-Note: Blobs are held in memory as part of state after initial load from IndexedDB. This is safe for 9 short audio clips (voice recordings typically <5 seconds = <50 KB each, total <500 KB in memory).
+### Anti-Pattern: Calling navigator.share() After an Awaited Operation
 
-### Boot Flow
+**What:** Awaiting `dialog.close()` or other promises before calling `navigator.share()`.
+**Why bad:** iOS Safari considers the user gesture expired after any async await, even resolved ones. `navigator.share()` then throws `NotAllowedError`.
+**Do instead:** Call `navigator.share()` synchronously inside the button click handler, or use the pattern where the async chain starts with `navigator.share()` before any other await.
 
-```
-app.js loads
-     ↓
-ServiceWorker registers (if first load, installs app shell into cache)
-     ↓
-Storage.loadAll() — reads all entries from IndexedDB
-     ↓
-State Controller initializes 9-slot array from IDB data
-     ↓
-TileView renders all 9 tiles with correct initial states
-     ↓
-First user tap on any tile → unlockAudio() resumes AudioContext
-```
+### Anti-Pattern: Storing WAV Blobs Without Updating mimeType
 
-### Long-Press Flow
+**What:** After audio trim, saving the WAV Blob to IndexedDB but keeping `mimeType: 'audio/mp4'`.
+**Why bad:** `decodeAudioData` on the next load will use the correct format regardless (it sniffs the binary header), but the `mimeType` field is also used by the exporter to name the file and detect format. Wrong MIME causes confusing behavior.
+**Do instead:** Update `mimeType: 'audio/wav'` and recalculate `durationSeconds` from `AudioBuffer.duration` after trim, before calling `saveSlot`.
 
-```
-User long-presses has-sound tile (touchstart → 500ms timer → touchend)
-     ↓
-TileView emits 'tile:longpress' → State Controller
-     ↓
-ContextMenu renders over tile with [Delete] [Re-record] buttons
-     ↓
-Delete: Storage.remove(i) → slot[i] = empty → TileView re-renders
-Re-record: slot[i].state = 'recording' → Recorder.start() → existing blob replaced after stop
-```
+### Anti-Pattern: Using the CSS color picker (`<input type="color">`) for Tile Color Selection
+
+**What:** Inserting `<input type="color">` in the action sheet.
+**Why bad:** The native color picker on iOS opens a large modal wheel — jarring UX. It also doesn't fit the soundboard's minimal aesthetic.
+**Do instead:** A fixed row of 8–10 color swatches as `<button>` elements with inline background colors. Simple, fast, matches the app's bold palette.
 
 ---
 
 ## Scaling Considerations
 
-This is a local-only PWA with a fixed 9-slot model — "scaling" means device-level concerns, not server load.
+This remains a local-only single-screen PWA. v1.1 does not change the scaling model.
 
-| Concern | Reality | Approach |
-|---------|---------|----------|
-| Memory | 9 blobs × ~50 KB avg = ~450 KB | Hold all blobs in state in memory — fine |
-| Storage | IndexedDB quota: ~50% of free disk on iOS | Far under limit for voice clips |
-| Audio latency | `decodeAudioData` takes ~5-50ms per clip | Pre-decode blobs to AudioBuffers on boot if needed |
-| iOS cache eviction | 7-day eviction for inactive PWAs (Cache API) | Audio in IndexedDB is not evicted on the same schedule |
-
-**Pre-decode optimization (optional, phase 2):** On boot, decode all blobs to `AudioBuffer` objects and cache them in memory. Tapping a tile then calls `source.start()` with zero decode latency. At 9 clips × ~50 KB this costs ~450 KB RAM — acceptable.
-
----
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Creating an AudioContext Per Tile
-
-**What people do:** Instantiate `new AudioContext()` inside each tile's play handler.
-
-**Why it's wrong:** iOS Safari allows a maximum of 4 AudioContext instances per page. After 4 tile taps, audio silently fails. Memory also accumulates.
-
-**Do this instead:** Singleton `getAudioContext()` pattern — one context for the entire app, unlocked on first interaction, reused forever.
-
-### Anti-Pattern 2: Storing Audio Blobs in the Cache API / Service Worker
-
-**What people do:** Intercept save requests in the service worker and store blobs in `caches.open()`.
-
-**Why it's wrong:** Cache API on iOS Safari has a 7-day inactivity eviction policy. User recordings disappear. Cache API is designed for cacheable HTTP responses, not user data.
-
-**Do this instead:** IndexedDB via idb-keyval. User data belongs in IndexedDB.
-
-### Anti-Pattern 3: Hardcoding `audio/webm` as Recording Format
-
-**What people do:** Pass `mimeType: 'audio/webm;codecs=opus'` to `new MediaRecorder()` without checking support.
-
-**Why it's wrong:** iOS Safari only supports `audio/mp4` (AAC). Passing an unsupported type throws `NotSupportedError` or silently records nothing.
-
-**Do this instead:** `getSupportedMimeType()` detection at startup, store the detected type in state, pass it to `MediaRecorder` constructor and to `new Blob(chunks, { type })`.
-
-### Anti-Pattern 4: Attaching Context Menu to `contextmenu` DOM Event on iOS
-
-**What people do:** Listen for `contextmenu` event on tiles to detect long-press.
-
-**Why it's wrong:** The `contextmenu` event does not fire reliably on iOS Safari (documented bug since iOS 13). It works on desktop Safari and macOS but not iPhone.
-
-**Do this instead:** Implement long-press via `touchstart` → start a 500ms timer → cancel on `touchmove`/`touchend`. Use `-webkit-touch-callout: none` and `-webkit-user-select: none` CSS to suppress the native iOS callout popup from competing.
-
-### Anti-Pattern 5: Using Framework State Management for 9 Slots
-
-**What people do:** Reach for Redux, Zustand, or a full React app for a fixed-size soundboard.
-
-**Why it's wrong:** A 9-element array with 4 possible states per slot is not complex state. A framework adds 30–300 KB of JS, a build pipeline, and abstraction overhead for zero user benefit on this use case.
-
-**Do this instead:** A plain JavaScript object with a 9-element array as state, a `setState(index, patch)` function, and a `CustomEvent` or callback-based observer for tile re-renders.
-
----
-
-## Integration Points
-
-### Internal Boundaries
-
-| Boundary | Communication | Constraint |
-|----------|---------------|------------|
-| TileView ↔ State Controller | DOM CustomEvents up, direct method calls down | TileView never calls audio or DB APIs directly |
-| State Controller ↔ Recorder | Direct function calls (`recorder.start()`, `recorder.stop()`) | Recorder is stateless between recordings |
-| State Controller ↔ Player | Direct function call (`player.playBlob(blob)`) | Player only receives blobs, not slot indices |
-| State Controller ↔ Storage | Async calls; state updates only after DB write confirms | Prevents state/storage drift on write failure |
-| Audio Pipeline ↔ Format module | `getSupportedMimeType()` called once at startup | Result stored in module-level variable, not recomputed |
-
-### iOS Audio Session Notes
-
-- **AudioContext unlock:** Must happen inside a user gesture handler (touchend or click). Cannot be deferred to a promise `.then()` — Safari considers the gesture context expired by then.
-- **Microphone permission:** `navigator.mediaDevices.getUserMedia({ audio: true })` prompts the user the first time. The browser remembers the grant — no need to re-request. In standalone PWA mode, the permission persists with the PWA identity.
-- **Recording and playback simultaneously:** Avoid — iOS routes audio to the earpiece when a microphone session is active, not the speaker. Stop any active recording before playback.
-- **Background audio:** Audio stops when a standalone PWA is backgrounded (WebKit bug 198277). This app is a tap-to-play soundboard — always used in foreground — so this limitation is irrelevant to the use case.
-
----
-
-## Build Order (Phase Dependencies)
-
-Based on component dependencies, build in this order:
-
-1. **Storage layer** (`storage/db.js`) — no dependencies, pure IndexedDB calls
-2. **Format detection** (`audio/format.js`) — no dependencies, pure browser API query
-3. **Recorder** (`audio/recorder.js`) — depends on format detection
-4. **Player** (`audio/player.js`) — depends on AudioContext singleton only
-5. **State Controller** (`state/store.js`) — orchestrates storage + audio; build after both
-6. **TileView** (`components/tile.js`) — pure rendering, depends only on state shape
-7. **ContextMenu** (`components/context-menu.js`) — depends on TileView existing in DOM
-8. **App bootstrap** (`app.js`) — wires all modules together
-9. **Service Worker** (`sw.js`) — can be written last; app works without it during dev
-
-Each layer can be tested independently before wiring the next. The audio pipeline (steps 2-4) should be verified on a real iOS device before building the UI on top.
+| Concern | v1.1 Impact | Approach |
+|---------|-------------|----------|
+| Memory | WAV blobs after trim are larger than AAC blobs (~10× for 30s) | Acceptable for <30s clips at 44100 Hz mono: max ~2.5 MB per slot, 22.5 MB total |
+| RAF loop count | Max 2 concurrent loops: waveform (recording) + progress (playing) | RAF is idle when no recording or playback active; negligible impact |
+| IndexedDB size | WAV trim replaces small AAC blob with larger WAV blob | Still well within iOS IndexedDB quota for personal use |
+| AnalyserNode | One analyser node per recording session, released on stop | No accumulation; single recording at a time enforced by state machine |
 
 ---
 
 ## Sources
 
-- [WebKit MediaRecorder API announcement](https://webkit.org/blog/11353/mediarecorder-api/) — iOS 14.3 format support (MP4/AAC)
-- [Build with Matija: iPhone Safari MediaRecorder](https://www.buildwithmatija.com/blog/iphone-safari-mediarecorder-audio-recording-transcription) — `isTypeSupported()` pattern, iOS format pitfalls
-- [Matt Montag: Unlock Web Audio in Safari/iOS](https://www.mattmontag.com/web/unlock-web-audio-in-safari-for-ios-and-macos) — AudioContext resume on user gesture
-- [MDN: Web Audio API Best Practices](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices) — single AudioContext, decodeAudioData
-- [MDN: IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB) — storage patterns
-- [idb-keyval on npm](https://www.npmjs.com/package/idb-keyval) — 573 bytes, get/set/del API
-- [MagicBell: iOS PWA Limitations](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide) — 7-day Cache API eviction, storage limits
-- [PWA on iOS 2025 (brainhub)](https://brainhub.eu/library/pwa-on-ios) — current iOS PWA constraints
-- [WebKit bug 198277](https://bugs.webkit.org/show_bug.cgi?id=198277) — background audio stops in standalone PWA
-- [Raymond Camden: Vue Soundboard with IndexedDB](https://www.raymondcamden.com/2019/11/12/building-a-custom-sound-board-with-vue-and-indexeddb) — IndexedDB blob pattern for soundboards
-- [Apple Developer Forums: contextmenu iOS](https://developer.apple.com/forums/thread/699834) — contextmenu event unreliable on iOS
-- [Preventing iOS callout on long-press](https://additionalknowledge.com/2024/08/02/how-to-prevent-the-default-context-menu-live-preview-on-long-press-in-mobile-safari-chrome/) — CSS workarounds
+- [MDN: AnalyserNode](https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode) — getByteTimeDomainData API, baseline widely available
+- [MDN: Visualizations with Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API) — canonical waveform visualization pattern
+- [MDN: Web Share API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Share_API) — navigator.share, canShare
+- [MDN: AudioBuffer](https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer) — copyFromChannel, getChannelData for trim implementation
+- [MDN: AudioBufferSourceNode](https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode) — single-use node, no currentTime property
+- [web.dev: Web Share API](https://web.dev/articles/web-share) — user gesture requirement, file sharing pattern
+- [Apple Developer Forums: WebRTC Microphone AnalyserNode](https://developer.apple.com/forums/thread/91754) — iOS Safari AnalyserNode with getUserMedia limitations
+- [Build with Matija: iPhone Safari MediaRecorder](https://www.buildwithmatija.com/blog/iphone-safari-mediarecorder-audio-recording-transcription) — iOS audio format constraints (v1.0 source, still applicable)
+- [Sharing Files from iOS 15 Safari — Bits and Pieces](https://blog.bitsrc.io/sharing-files-from-ios-15-safari-to-apps-using-web-share-c0e8f6a4971) — Web Share API file sharing on iOS
+- [LogRocket: Advanced Guide to Web Share API](https://blog.logrocket.com/advanced-guide-web-share-api-navigator-share/) — canShare() detection pattern, user gesture requirements
 
 ---
-*Architecture research for: iPhone PWA Soundboard*
-*Researched: 2026-02-22*
+*Architecture research for: iPhone PWA Soundboard v1.1 feature integration*
+*Researched: 2026-02-23*

@@ -1,8 +1,24 @@
 # Feature Research
 
-**Domain:** Mobile soundboard PWA (personal, microphone-only, local storage)
-**Researched:** 2026-02-22
-**Confidence:** HIGH (core features) / MEDIUM (PWA-specific constraints verified across multiple sources)
+**Domain:** Mobile soundboard PWA (personal, microphone-only, local storage) — v1.1 new capabilities
+**Researched:** 2026-02-23
+**Confidence:** HIGH (table stakes / anti-features) / MEDIUM (iOS-specific behavior, Web Share edge cases)
+
+---
+
+## Context: v1.1 Scope
+
+v1.0 is shipped. This research covers the seven new features planned for v1.1:
+
+1. Waveform visualizer during recording (VIZ-01)
+2. Delete confirmation dialog (UX-01)
+3. Clip duration badge on filled tiles (UX-02)
+4. Playback progress indicator (UX-03)
+5. Tile colors: user-selectable per tile (COLOR-01)
+6. Audio trim: crop silence from start/end (TRIM-01)
+7. Clip export via Web Share API / file download (SHARE-01)
+
+Existing infrastructure available for these features: `getAudioContext()` (single shared AudioContext, never recreated), `audioBufferCache` (keyed by tile index), `activeNodes` (per-tile AudioBufferSourceNode), `TileData` state machine (empty → recording → saving → has-sound → playing), `IndexedDB` via idb-keyval, `MediaRecorder` (AAC/MP4 on iOS, Opus/WebM on Chrome).
 
 ---
 
@@ -10,129 +26,111 @@
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these = product feels broken.
+Features that belong in v1.1 because their absence makes the app feel unfinished once the rest of v1.1 ships.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Tap to play sound | The entire premise of a soundboard | LOW | Must be near-instant. Any perceptible delay breaks the core promise. AudioContext must be pre-unlocked on first interaction. |
-| Visual distinction: empty vs. filled tile | Users cannot identify purpose without visual cue | LOW | Empty = prompt to record. Filled = tap to play. Color, icon, or opacity difference sufficient. |
-| Tap-to-start / tap-to-stop recording | Intuitive capture flow for arbitrary-length sounds | MEDIUM | Start on tap, stop on second tap. Simpler than hold-to-record for long sounds. Status must be obvious during recording. |
-| Recording active indicator | User must know recording is in progress | LOW | Pulsing animation, border highlight, or countdown. Without this, users do not know to speak. |
-| Sounds persist across sessions | Users expect their data to survive app restart | MEDIUM | IndexedDB + Blob storage. Must survive page reload and Safari navigation. |
-| Delete a recorded sound | Users need to correct mistakes | LOW | Accessible via long-press menu. Confirmation step recommended to prevent accidental deletion. |
-| Re-record a sound slot | Users record suboptimal takes and want to redo | LOW | Long-press → "Re-record" option. Must confirm if overwriting existing sound. |
-| Microphone permission request | iOS requires explicit consent | LOW | Request only on first record attempt, not on app load. Use getUserMedia on demand. |
-| PWA installability (Add to Home Screen) | Expected for app-like experience on iPhone | MEDIUM | Requires HTTPS, manifest.json with icons, service worker. iOS does not auto-prompt; user initiates via Share sheet. |
+| Delete confirmation dialog | Any destructive action on mobile needs confirmation; accidental long-press-then-delete is a real flow | LOW | Already has a `<dialog>` pattern (`rename-dialog.ts`, `clone-before-wire`). Native `<dialog>` element with "Delete" / "Cancel" buttons. Destructive button styled red but labeled clearly (not just color-coded). |
+| Clip duration badge | Users record without knowing the length; a badge lets them calibrate; visible on the tile itself like every iOS voice memo | LOW | `AudioBuffer.duration` is available post-decode (already cached in `audioBufferCache`). Format as "2.4s". Update badge when sound is saved. Store duration in `SlotRecord` to avoid requiring AudioBuffer decode for display. |
+| Playback progress indicator | Users playing a soundboard clip expect to know how far through the clip they are; native iOS apps all do this | MEDIUM | Ring (conic-gradient or SVG stroke-dashoffset) around tile border is the cleanest integration with existing tile shape. Bar at bottom of tile is an alternative. Requires a `requestAnimationFrame` loop during `playing` state. Calculate progress as `currentTime / duration`. |
 
-### Differentiators (Competitive Advantage)
+### Differentiators (Features That Elevate v1.1)
 
-Features that elevate this app beyond a minimal demo. Aligned with the core value: "one button, one sound, immediately."
+Features worth building because they address real pain points or add clearly visible value beyond the baseline.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Haptic feedback on tap | Physical confirmation the button was pressed; feels native | LOW | Use `navigator.vibrate()`. Works in iOS Safari standalone mode. Brief pulse (10–15ms) on play, longer (30ms) on record start/stop. |
-| Play behavior: interrupt on re-tap | Tapping a playing tile restarts or stops it — prevents overlapping chaos | LOW | Track `AudioBufferSourceNode` per tile. Stop before re-playing. Single-tile interrupt is the natural soundboard expectation. |
-| Visual recording waveform / pulse | Real-time microphone level shows the mic is picking up sound | MEDIUM | Canvas or CSS animation reading `AnalyserNode`. Validates that recording is actually capturing audio, not silence. |
-| Smooth, app-like full-screen experience | Feels installed, not browser tab | LOW | `display: standalone` in manifest, `apple-mobile-web-app-capable`, status bar meta, `viewport-fit=cover`. Removes Safari chrome. |
-| Offline-first | Works without network after install | LOW | Service worker caches app shell. All sounds in IndexedDB. No network dependency post-install. |
-| Compressed audio storage | More sounds fit; faster playback load | MEDIUM | MediaRecorder with `audio/mp4` (AAC on iOS Safari) or `audio/webm;codecs=opus` (Chrome). iOS Safari produces AAC natively — storage-efficient by default. |
-| Immediate playback readiness | No lag on first tap of a filled tile | MEDIUM | Decode audio blob to `AudioBuffer` on load or lazily on first access. Cache decoded buffer in memory. Pre-decode on app start for all filled tiles. |
+| Waveform visualizer during recording | Proves the microphone is actually picking up audio; eliminates "am I being recorded?" anxiety; dominant pattern in all iOS voice memo / audio recorder apps | MEDIUM | Bar-style (frequency bars) is more readable on small tiles than oscilloscope. Use `AnalyserNode.getByteFrequencyData()` on the existing `AudioContext` (single instance, never recreate). Cap rAF at 30fps explicitly (`lastTime + 33ms` guard) to avoid battery drain on iOS. Canvas element overlaid or embedded in tile. Cannot use `timeslice` on MediaRecorder iOS (unreliable); AnalyserNode taps live stream directly instead. |
+| Tile colors: user-selectable | Personal soundboards need quick visual navigation; color is faster than reading labels; 9 tiles is exactly the scale where color-as-identifier works | MEDIUM | Use `<input type="color">` — supported on iOS Safari since iOS 17 with native color picker UI. Offer a small preset palette (6-8 colors) above the native picker as shortcuts for speed. Store color per tile in `SlotRecord` (or a separate key in IndexedDB). Apply as CSS background with opacity or border color so label/state indicators remain readable. |
+| Clip export via Web Share API | Users want to use their recorded clips outside the app; sending a voice memo is a very common use case | MEDIUM | `navigator.share({ files: [audioFile] })` works on iOS Safari 15+ for MP4/AAC files. **Use `navigator.canShare({ files })` before calling `navigator.share`** — required to avoid runtime errors. Fallback: create a temporary blob URL, programmatically click an `<a download>` element, then revoke the URL. In standalone PWA mode on iOS the share sheet fires normally (not a blocker). File name should reflect tile label or index: `sound-1.m4a`. |
+| Audio trim: auto-crop silence | Recordings often start and end with silence (user reaction time, mic close-time); automatic trim makes clips shorter and more snappy | HIGH | Post-recording only (not real-time). Use `AudioBuffer.getChannelData()` (Float32Array of PCM samples). Walk from start until RMS exceeds a threshold (~-40 dBFS, or `Math.abs(sample) > 0.01` for fast heuristic), then from end inward. Threshold must be tunable — ambient noise varies significantly. Render trimmed result via `OfflineAudioContext` to a new AudioBuffer, then encode back to Blob. **iOS caveat: no native `AudioEncoder` / encode-back API yet; must use a library (e.g., `audio-encoder` or `extendable-media-recorder`) or save trimmed Float32Array as WAV (PCM, larger file).** This is the highest-complexity feature in v1.1. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that seem attractive but actively harm this product's goals.
-
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Text labels on tiles | "How will I remember which sound is which?" | Adds a label-entry UI step, breaks the zero-friction flow, clutters the minimal grid | Trust positional memory. 9 tiles in a 3x3 grid is a well-understood spatial map. Scope-out as stated in PROJECT.md. |
-| More than 9 tiles / scrolling | "I need more sounds!" | Destroys the single-screen constraint; forces navigation; working memory overload; completely changes the product | Ruthlessly stay at 9. If user needs more, the product category shifts. |
-| Cloud sync / backup | "What if I get a new phone?" | Requires backend, auth, GDPR handling, network dependency — turns a zero-infrastructure app into a service | LocalStorage is the design. Frame "install on each device" as the pattern. |
-| Import audio files | "I want to use my MP3" | Needs file-picker UI, format conversion, size validation — scope explosion. Also breaks the "your voice" value proposition. | Microphone-only recording as stated in PROJECT.md. |
-| Hold-to-record (press and hold) | Seems intuitive | Very bad for sounds longer than 10 seconds (fatigue) and breaks on accidental releases | Tap-to-start / tap-to-stop is strictly better for arbitrary-length personal recordings. |
-| Undo delete | "I deleted by accident" | Adds state complexity (deleted-but-recoverable), requires holding audio in memory after deletion | Confirmation dialog on delete is sufficient protection. Keep state simple. |
-| Volume control per tile | Professional users expect it | Adds settings UI per tile; this app is not a mixer | Global device volume is the control surface. Keep tiles stateless beyond audio data. |
-| Real-time playback simultaneous overlap | "I want to stack sounds" | Cacophony. Personal soundboards primarily use one sound at a time. Multiple concurrent AudioNodes compound memory pressure on mobile. | Interrupt-on-tap behavior. Tapping a playing tile stops and restarts it. |
-| Background audio playback | "It keeps stopping when I lock the screen" | iOS aggressively suspends PWA background processes; implementing this requires Media Session API + significant complexity with unreliable behavior | Design around the constraint: the soundboard is a foreground interaction tool. |
+| Oscilloscope-style waveform (time-domain) | Looks cooler in videos | The oscilloscope centerline is at rest (visually looks "off") when no loud audio is present; users interpret flat line as "not recording"; bar visualizer (frequency domain) shows activity even for soft speech | Stick with bar-style frequency visualizer from `getByteFrequencyData()`. Always visually active when mic is open. |
+| 60fps waveform animation | "Smoother is better" | iOS in Low Power Mode throttles `requestAnimationFrame` to 30fps. Running at 60fps in regular mode drains battery during a recording session (30s max). Human eye cannot distinguish 30fps from 60fps for bar animations. | Cap rAF at 30fps with a `lastTime` guard. Looks identical, uses half the GPU/CPU. |
+| `timeslice` on MediaRecorder for real-time waveform | "More data = better visualization" | iOS Safari `MediaRecorder` with `timeslice` is unreliable (chunks arrive out of order or merged). Existing `recorder.ts` correctly avoids `timeslice` (comment: "Chunked recording with short timeslices is unreliable on iOS Safari"). | Tap the live `MediaStream` via `AnalyserNode` directly. Never touch `timeslice`. |
+| Interactive waveform scrubber for trim | "Let the user manually drag trim points" | Needs a full waveform render (decode entire AudioBuffer, downsample to peaks, draw to canvas), two draggable handles, touch gesture handling — 3-5 days of work. For 30s clips with mostly-silence edges, auto-trim is almost always correct. | Auto-silence detection with a "trim preview" before confirm. If preview looks wrong, user can re-record. |
+| Encode trimmed audio as MP4/AAC on iOS | "Keep the same file format" | Web Audio API has no `AudioEncoder` for MP4/AAC in Safari (as of early 2026). `MediaRecorder` cannot accept an `AudioBuffer` as input. Encoding back requires a WASM codec (lamejs, ffmpeg.wasm, etc.) — 4-8 MB download, compilation overhead. | Save trimmed audio as WAV (PCM) using a small pure-JS WAV encoder (~2 KB). WAV is larger (~5-8x) but iOS AudioContext plays it fine; for personal use over IndexedDB this is acceptable. Alternatively, skip re-encode entirely: store trim offsets in metadata and apply them at `source.start(offset, duration)` in the player. Offset-based trim is the best approach (zero encode cost). |
+| Color wheel / full HSL picker | "I want exact control" | `<input type="color">` already opens the native iOS color wheel; adding a custom one is pure duplication. Custom color wheels on canvas require significant event handling for mobile touch. | Use `<input type="color">` as the "full picker" option, accessed by tapping a "more colors" swatch in the preset palette. |
+| Waveform during playback | "Visualize the sound as it plays" | Requires an AnalyserNode in the playback graph (currently: source → destination). Would need to add AnalyserNode to `playBlob()` and run a separate rAF loop per playing tile. Added complexity for the recording-focused context. | Playback progress ring/bar is sufficient and simpler. Waveform-during-playback is a v2 concern if user feedback requests it. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Microphone Permission]
-    └──required-by──> [Tap-to-record]
-                          └──required-by──> [Sound Storage in IndexedDB]
-                                                └──required-by──> [Tap to Play]
-                                                └──required-by──> [Delete Sound]
-                                                └──required-by──> [Re-record Sound]
+[Existing: AudioBuffer cache (player.ts:audioBufferCache)]
+    └──required-by──> [Clip Duration Badge] (AudioBuffer.duration is already decoded)
+    └──required-by──> [Audio Trim] (needs decoded PCM via getChannelData())
+    └──required-by──> [Playback Progress] (needs AudioBuffer.duration for progress math)
 
-[AudioContext (unlocked on first user tap)]
-    └──required-by──> [Tap to Play]
-    └──required-by──> [Recording Waveform Visualizer]
+[Existing: AudioContext (single instance, getAudioContext())]
+    └──required-by──> [Waveform Visualizer] (AnalyserNode attaches to AudioContext)
+    └──required-by──> [Audio Trim] (OfflineAudioContext for rendering trimmed result)
 
-[Service Worker]
-    └──required-by──> [PWA Installability]
-    └──required-by──> [Offline-first]
+[Existing: MediaStream (getMicrophoneStream())]
+    └──required-by──> [Waveform Visualizer] (source node from MediaStream → AnalyserNode)
 
-[PWA Manifest + HTTPS]
-    └──required-by──> [PWA Installability]
-    └──required-by──> [Full-screen Standalone Mode]
+[Existing: TileState machine (store.ts)]
+    └──required-by──> [Playback Progress] (only animate in 'playing' state)
+    └──required-by──> [Waveform Visualizer] (only run rAF loop in 'recording' state)
+    └──required-by──> [Clip Duration Badge] (only visible in 'has-sound' and 'playing' states)
 
-[Tap to Play]
-    └──enhanced-by──> [Haptic Feedback]
-    └──enhanced-by──> [Play Interrupt Behavior]
-    └──enhanced-by──> [Immediate Playback Readiness (pre-decoded buffer)]
+[Clip Duration Badge]
+    └──enables──> [Playback Progress] (duration needed for progress fraction calculation)
 
-[Tap-to-record]
-    └──enhanced-by──> [Recording Active Indicator]
-    └──enhanced-by──> [Recording Waveform Visualizer]
+[Existing: SlotRecord (IndexedDB)]
+    └──requires-extension──> [Tile Colors] (add `color` field to SlotRecord)
+    └──requires-extension──> [Clip Duration] (add `duration` field to SlotRecord)
+
+[Audio Trim]
+    └──produces──> [New Blob or Trim Offsets] (stored in SlotRecord; clears AudioBuffer cache)
+    └──conflicts──> [Encode-back to MP4/AAC] (avoid; use offset metadata or WAV instead)
+
+[Clip Export (Web Share API)]
+    └──reads-from──> [SlotRecord.blob] (the raw recorded Blob from IndexedDB)
+    └──fallback──> [<a download> Blob URL] (when navigator.canShare() returns false)
 ```
 
 ### Dependency Notes
 
-- **AudioContext must be unlocked before any sound plays:** iOS Safari silences AudioContext until the first user gesture. The very first tap anywhere in the app must call `audioContext.resume()`. This is not optional — it is a hard iOS platform requirement.
-- **Microphone permission requires user gesture:** `getUserMedia()` must be called from a tap event, not on app load. iOS may re-prompt on each app open when running as standalone PWA (known WebKit bug, unfixed as of 2025).
-- **Pre-decoded buffers depend on sounds existing in IndexedDB:** Decode-on-load optimization only applies to tiles that already have audio stored. Empty tiles have no buffer.
-- **Service worker is gating for offline-first and installability:** Both features require a registered service worker. This is a Phase 1 infrastructure concern — ship service worker early.
-- **Full-screen standalone conflicts with Safari permission persistence bug:** When running as an installed PWA in standalone mode, getUserMedia may re-prompt for microphone access on each launch. This is a known WebKit bug (bugs.webkit.org/215884). Design UX to handle re-prompt gracefully, not as an error state.
+- **Waveform visualizer requires AnalyserNode on the live MediaStream, not on MediaRecorder:** The existing `recorder.ts` does not pass the stream through an AnalyserNode. The visualizer needs to create `ctx.createMediaStreamSource(stream)` → `analyser` → nothing (not connected to destination, no playback). This is a recording-only node. Cancel the rAF loop and disconnect the AnalyserNode when recording stops.
+
+- **Playback progress requires knowing AudioBuffer.duration at play-start:** `duration` is already available from the cached `AudioBuffer` in `audioBufferCache`. It should also be persisted in `SlotRecord` to avoid needing to decode before displaying the badge.
+
+- **Audio trim with offset metadata (no re-encode) is the recommended path:** Store `trimStart` and `trimEnd` (seconds) in `SlotRecord`. In `playBlob()`, pass `source.start(0, trimStart, trimEnd - trimStart)`. This costs zero bytes and zero encode time. `AudioBufferSourceNode.start(when, offset, duration)` is supported on all platforms.
+
+- **Tile color requires SlotRecord schema evolution:** `SlotRecord` currently stores `blob`, `mimeType`, `label`. Color needs a new field (`color?: string`). Because idb-keyval stores the full object, this is a non-breaking additive change — existing records without `color` will render with the default tile color.
+
+- **Delete confirmation dialog conflicts with the existing action sheet flow:** Currently: long-press → action sheet → tap Delete. With confirmation: long-press → action sheet → tap Delete → confirmation dialog. The `clone-before-wire` pattern already used in `rename-dialog.ts` prevents stale event listeners on repeated modal shows.
 
 ---
 
-## MVP Definition
+## v1.1 MVP Definition
 
-### Launch With (v1)
+### Ship in v1.1
 
-Minimum viable product — validates the core premise: "one button, one sound, immediately."
+Features with clear iOS-verified feasibility and bounded complexity.
 
-- [ ] 3x3 grid of round tiles, full screen, no scrolling — spatial foundation
-- [ ] Tap empty tile → start recording → tap again → stop and save — core capture flow
-- [ ] Tap filled tile → play sound (interrupt if already playing) — core playback
-- [ ] Visual distinction: empty vs. filled state — orientation without labels
-- [ ] Recording active indicator (pulsing border or animation) — feedback that mic is live
-- [ ] Long-press filled tile → context menu (Delete / Re-record) — management
-- [ ] Confirmation dialog for Delete — prevent accidental data loss
-- [ ] Sound stored in IndexedDB as Blob, survives session — persistence
-- [ ] Microphone permission requested on first record attempt — correct flow
-- [ ] AudioContext unlocked on first user interaction — iOS playback prerequisite
-- [ ] PWA manifest + service worker + HTTPS — installable to Home Screen
-- [ ] Offline capable after install — no network dependency
+- [ ] Delete confirmation dialog — prevents irreversible accidental deletion; LOW complexity; reuses existing `<dialog>` pattern
+- [ ] Clip duration badge — visible metadata that every audio app provides; LOW complexity; duration already available in cache
+- [ ] Waveform visualizer during recording — removes "am I being recorded?" anxiety; MEDIUM complexity; AnalyserNode + Canvas + 30fps rAF
+- [ ] Playback progress indicator — visual feedback during playback; MEDIUM complexity; conic-gradient ring or SVG stroke
+- [ ] Tile colors — visual navigation aid; MEDIUM complexity; `<input type="color">` + preset palette + SlotRecord field
 
-### Add After Validation (v1.x)
+### Ship in v1.1 If Time Allows
 
-Add when the core is shipped and user feedback confirms value.
+- [ ] Clip export (Web Share API + download fallback) — MEDIUM complexity; requires `canShare()` check + blob URL fallback; worth shipping but can defer to v1.2 without breaking anything
+- [ ] Audio trim (offset-based, no re-encode) — MEDIUM-HIGH complexity; AnalyserNode silence detection post-recording + `source.start(offset, duration)` playback; safest path avoids any encode; can defer to v1.2
 
-- [ ] Haptic feedback on tap/record — sensory polish, low effort, high feel payoff
-- [ ] Recording waveform visualizer — confidence that mic is actually capturing audio
-- [ ] Pre-decoded audio buffer cache — eliminates any latency on repeat plays
-- [ ] Graceful re-prompt handling for microphone permission (PWA standalone bug) — reduce friction for installed users
+### Defer to v1.2+
 
-### Future Consideration (v2+)
-
-Defer until product-market fit is confirmed and the scope justifies complexity.
-
-- [ ] Full-screen display mode optimization (viewport-fit, safe-area insets on notched iPhones) — polish for varied hardware
-- [ ] Storage usage indicator — inform users if IndexedDB is approaching limits (unlikely for 9 short recordings)
-- [ ] iOS 16.4+ install prompt hint UI — guide user through Share → Add to Home Screen flow since iOS does not auto-prompt
+- [ ] Audio trim with waveform preview — HIGH complexity; interactive scrubber; wait for user demand
+- [ ] Encode trimmed audio back to MP4 — HIGH complexity; needs WASM codec; marginal value given offset-based approach
+- [ ] Waveform during playback — MEDIUM complexity; nice but not essential
 
 ---
 
@@ -140,82 +138,230 @@ Defer until product-market fit is confirmed and the scope justifies complexity.
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Tap to play | HIGH | LOW | P1 |
-| Tap-to-record (start/stop) | HIGH | MEDIUM | P1 |
-| Visual empty vs. filled tile | HIGH | LOW | P1 |
-| Sound persistence (IndexedDB) | HIGH | MEDIUM | P1 |
-| Recording active indicator | HIGH | LOW | P1 |
-| Delete / re-record via long press | HIGH | LOW | P1 |
-| AudioContext unlock (iOS) | HIGH | LOW | P1 — invisible but critical |
-| Microphone permission on demand | HIGH | LOW | P1 |
-| PWA manifest + service worker | HIGH | MEDIUM | P1 |
-| Offline-first | HIGH | LOW | P1 — follows from service worker |
-| Interrupt on re-tap | MEDIUM | LOW | P1 — prevents audio chaos |
-| Haptic feedback | MEDIUM | LOW | P2 |
-| Recording waveform visualizer | MEDIUM | MEDIUM | P2 |
-| Pre-decoded buffer cache | MEDIUM | MEDIUM | P2 |
-| Graceful re-prompt UX | MEDIUM | LOW | P2 |
-| Full-screen / safe-area polish | LOW | LOW | P3 |
-| Storage usage indicator | LOW | LOW | P3 |
-| Install prompt hint UI | LOW | MEDIUM | P3 |
+| Delete confirmation dialog | HIGH (prevents data loss) | LOW | P1 |
+| Clip duration badge | HIGH (expected by users) | LOW | P1 |
+| Waveform visualizer (recording) | HIGH (validation of mic capture) | MEDIUM | P1 |
+| Playback progress indicator | MEDIUM (feedback during play) | MEDIUM | P2 |
+| Tile colors | MEDIUM (navigation aid) | MEDIUM | P2 |
+| Clip export (Web Share + download) | MEDIUM (utility beyond app) | MEDIUM | P2 |
+| Audio trim (offset-based) | MEDIUM (polish on recordings) | MEDIUM-HIGH | P2 |
+| Interactive waveform scrubber | LOW (auto-trim sufficient) | HIGH | P3 |
+| Waveform during playback | LOW (progress bar sufficient) | MEDIUM | P3 |
 
 **Priority key:**
-- P1: Must have for launch
-- P2: Should have, add when possible
-- P3: Nice to have, future consideration
+- P1: Must ship in v1.1
+- P2: Ship in v1.1 if schedule allows; otherwise v1.2
+- P3: Backlog
+
+---
+
+## iOS Safari Specifics: Per Feature
+
+### VIZ-01: Waveform Visualizer
+
+**Pattern:** Bar-style frequency bars (not oscilloscope). `AnalyserNode.getByteFrequencyData()` fills a `Uint8Array` of `fftSize / 2` frequency buckets. For a compact tile visualizer, `fftSize = 64` (32 bars) is sufficient and fast.
+
+**Frame rate on iOS:** iOS Safari throttles `requestAnimationFrame` to 30fps in Low Power Mode. Design to 30fps (16.7ms budget) or cap explicitly to 33ms per frame. The visual difference at 30fps is imperceptible for bar animations.
+
+**Connection pattern:**
+```
+getMicrophoneStream() → ctx.createMediaStreamSource(stream) → analyserNode → [NOT connected to destination]
+```
+Never connect analyserNode to destination (no playback echo). Disconnect and null the source node when recording stops to free GPU resources.
+
+**Canvas sizing:** Use `devicePixelRatio` for crisp rendering on retina displays. Set `canvas.width = element.clientWidth * devicePixelRatio`. Draw bars with integer pixel widths to avoid sub-pixel anti-aliasing cost.
+
+**Confidence:** HIGH — MDN AnalyserNode docs confirm this pattern. The existing `AudioContext` singleton and `getMicrophoneStream()` cache make hookup straightforward.
+
+---
+
+### UX-01: Delete Confirmation Dialog
+
+**Pattern:** `<dialog>` element with "Cancel" and "Delete" buttons. "Delete" button colored red and labeled "Delete" (not "OK" or "Yes"). Focus trapped inside dialog. `dialog.showModal()` + `clone-before-wire` pattern from `rename-dialog.ts` to prevent listener accumulation.
+
+**UX research finding:** Button text matters more than color — users in a hurry skip the message text and act on button labels. "Delete" is better than "Yes". Cancel button should be on the left (iOS standard: destructive on right, but "Cancel" closing rightward is fine given iOS convention expects destructive=right in action sheets; dialog is different context).
+
+**Accessibility:** `<dialog>` provides focus trap and `role="dialog"` natively. Add `aria-labelledby` pointing to the dialog heading.
+
+**Confidence:** HIGH — existing `<dialog>` usage in rename-dialog.ts confirms this pattern works in production on iOS Safari.
+
+---
+
+### UX-02: Clip Duration Badge
+
+**Implementation:** `AudioBuffer.duration` returns seconds as a float. Format with one decimal: `${Math.round(duration * 10) / 10}s`. Persist the value in `SlotRecord` alongside the blob (additive field: `duration?: number`). Render as an absolutely-positioned badge in the corner of the tile.
+
+**Where duration is available:** After `decodeAudioData()` in `player.ts:playBlob()` (first play), or after recording in `recorder.ts:onComplete()` (if we decode then). Best strategy: decode immediately after saving (in the save flow, not at play time), cache in `audioBufferCache`, persist duration in `SlotRecord`.
+
+**Display states:** Show on `has-sound` and `playing` states. Hide on `empty`, `recording`, `saving`, `error`. During playback the badge can remain visible (not replaced by progress indicator — they serve different purposes).
+
+**Confidence:** HIGH — `AudioBuffer.duration` is a standard Web Audio API property, supported everywhere.
+
+---
+
+### UX-03: Playback Progress Indicator
+
+**Pattern options:**
+
+- **Ring (recommended):** CSS `conic-gradient` border or SVG `stroke-dashoffset` ring around the tile. `conic-gradient` is supported on iOS Safari since iOS 12.1. Animate by updating a CSS custom property `--progress` from 0 to 1 each rAF frame.
+- **Bar:** A thin bar at the bottom of the tile that fills left-to-right. Simpler to implement, less visually integrated with the circular tile design.
+
+**Progress calculation:**
+```
+progress = (audioCtx.currentTime - playStartTime) / audioBuffer.duration
+```
+Store `playStartTime = audioContext.currentTime` at the moment `source.start(0)` is called. Use `requestAnimationFrame` loop while tile is in `playing` state. Cancel rAF on `onended` or manual stop.
+
+**iOS note:** `AudioContext.currentTime` does not pause when the app is backgrounded (it continues incrementing). If the user backgrounds and returns, the progress ring may show completed. This is acceptable for a foreground-use soundboard.
+
+**Ring implementation (conic-gradient approach):**
+```css
+.tile[data-state="playing"] {
+  background: conic-gradient(var(--accent) calc(var(--progress, 0) * 360deg), transparent 0);
+}
+```
+Update `--progress` via `tile.style.setProperty('--progress', String(fraction))`.
+
+**Confidence:** MEDIUM — `conic-gradient` confirmed supported. Animation pattern via CSS custom property is well-established. iOS `AudioContext.currentTime` behavior is consistent with spec.
+
+---
+
+### COLOR-01: Tile Colors
+
+**Input mechanism:** `<input type="color">` — supported on iOS Safari 17+ with native color wheel UI. In iOS 17, the native picker includes an eyedropper. In iOS 18.4+, it supports P3 gamut and alpha (alpha not needed here).
+
+**UX flow:** Long-press → action sheet → "Change Color" → show a small popover with 8 preset swatches + a "Custom..." swatch that triggers `<input type="color">`. Presets cover the most common choices quickly; custom handles edge cases. Store selected color (hex string) in `SlotRecord.color`.
+
+**Preset palette suggestion:** 8 colors from a warm/cool balance: red, orange, yellow, green, teal, blue, purple, pink. Defaults to the existing tile background color (no color = default).
+
+**Rendering:** Apply color as `background-color` on the tile. Keep text/icons readable by using a fixed-contrast foreground (white or dark overlay depending on luminance of chosen color — can use simple lightness check: `luma = 0.299 * r + 0.587 * g + 0.114 * b`).
+
+**Persistence:** `SlotRecord` schema change: add `color?: string` (optional hex). Existing records without this field render with the default color (no migration needed).
+
+**Confidence:** MEDIUM — `<input type="color">` on iOS 17+ confirmed via WebKit blog. Behavior on iOS 14-16 may fall back to a limited picker; those users get the native but less polished version. This is acceptable since the app already targets iOS 14.3+ for MediaRecorder.
+
+---
+
+### TRIM-01: Audio Trim
+
+**Recommended implementation: offset-based trim (no re-encode)**
+
+Store `trimStart: number` and `trimEnd: number` (seconds) in `SlotRecord`. In `player.ts:playBlob()`, change:
+```typescript
+source.start(0);  // current
+```
+to:
+```typescript
+const start = record.trimStart ?? 0;
+const duration = record.trimEnd != null ? record.trimEnd - start : undefined;
+source.start(0, start, duration);
+```
+
+This approach:
+- Zero cost: no encode, no new Blob, no WASM
+- Lossless: original audio preserved; trim is non-destructive
+- Compatible: `AudioBufferSourceNode.start(when, offset, duration)` is fully supported on iOS Safari
+
+**Auto-silence detection algorithm:**
+1. Get `Float32Array` from `audioBuffer.getChannelData(0)` (mono channel is sufficient)
+2. Walk from start, find first frame where `Math.abs(sample) > SILENCE_THRESHOLD` (e.g., 0.01, tunable)
+3. Walk from end, find last frame above threshold
+4. Convert sample indices to seconds: `trimStart = firstActiveFrame / audioBuffer.sampleRate`
+5. Add small padding: `trimStart = Math.max(0, trimStart - 0.05)` to avoid cutting the attack
+6. Store in `SlotRecord`
+
+**When to trigger:** Automatically after recording completes (offer a "Trim applied" toast with an "Undo" option). Do not require manual activation for the common case.
+
+**Edge cases:**
+- All silence (threshold never exceeded): do not trim — return `trimStart = 0, trimEnd = buffer.duration`
+- Very noisy background: threshold produces bad trim — tune threshold conservatively (lower value = keep more audio = safer)
+- Short clips (< 0.5s after trim): warn user, do not over-trim
+
+**Alternative rejected: OfflineAudioContext render + WAV encode:**
+Would produce a trimmed Float32Array renderable to a WAV blob using a pure-JS WAV writer (~40 lines). But WAV is ~5x larger than AAC for the same audio, and the offset approach is strictly better for this use case.
+
+**Confidence:** MEDIUM — `AudioBufferSourceNode.start(when, offset, duration)` is standard and confirmed in MDN. The silence detection algorithm is a well-established pattern. The offset-based approach is novel but sound (no pun intended) — it avoids every known iOS encode pitfall.
+
+---
+
+### SHARE-01: Clip Export
+
+**Web Share API — iOS behavior:**
+- Supported since iOS 12.1 (text/URLs); file sharing via `navigator.share({ files })` supported since iOS 15.0 (Web Share Level 2)
+- Works in both Safari browser mode and standalone PWA mode on iOS — no behavioral difference for file sharing
+- For audio files: share an `audio/mp4` File object. Create with `new File([blob], 'sound-1.m4a', { type: blob.type })`
+- **Always call `navigator.canShare({ files: [file] })` before `navigator.share()`** — required on iOS to validate file type support; skipping this causes silent failures
+
+**Fallback (when `canShare()` returns false or API not available):**
+```typescript
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = 'sound-1.m4a';
+a.click();
+URL.revokeObjectURL(url);
+```
+On iOS Safari, this triggers the share sheet or a "Save to Files" prompt rather than a file download (iOS does not download files to a visible Downloads folder from PWA context). Still useful.
+
+**File naming:** Use tile label if set, else `sound-${index + 1}`. Extension: `.m4a` for `audio/mp4`, `.webm` for `audio/webm`.
+
+**UX placement:** Add "Export" option to the long-press action sheet alongside Delete, Re-record, Rename.
+
+**Confidence:** MEDIUM — Web Share Level 2 file sharing on iOS confirmed via multiple sources (firt.dev, MDN). The `canShare()` guard is documented as required. Standalone PWA mode behavioral parity confirmed.
 
 ---
 
 ## Competitor Feature Analysis
 
-| Feature | Soundboard Studio (iOS) | MyInstants (iOS) | Our Approach |
-|---------|------------------------|-----------------|--------------|
-| Grid layout | Flexible grid, multiple boards, scrollable | Large library grid, paginated | Fixed 3x3, single screen, no scroll |
-| Recording | Hold to record | No recording (predefined sounds) | Tap-to-start / tap-to-stop |
-| Labels | Text labels + icons | Text labels | No labels (positional memory) |
-| Sound source | File import + recording | Online library | Microphone-only |
-| Storage | iCloud sync | Cloud | Local IndexedDB only |
-| Tile count | Up to 8x8 per board, multi-board | Hundreds (paginated) | 9 (fixed) |
-| Haptic feedback | Unknown | Yes (v5.0+) | Yes (v1.x) |
-| PWA | No (native app) | No (native app) | Yes — no App Store required |
-| Waveform | Waveform editor on trim | No | Recording visualizer (v1.x) |
+| Feature | GarageBand iOS (reference) | Voice Memos iOS (reference) | Our v1.1 Approach |
+|---------|---------------------------|----------------------------|-------------------|
+| Recording waveform | Real-time waveform (oscilloscope, tall) | Real-time waveform (bar-style, compact) | Bar-style in tile, 30fps, AnalyserNode |
+| Silence trim | Auto-trim on stop (optional toggle) | Manual trim with waveform scrubber | Auto-trim with offset metadata, no scrubber |
+| Clip duration | Always visible | Always visible (hh:mm:ss) | Badge on filled tile (seconds) |
+| Playback progress | Timeline scrubber | Timeline scrubber + waveform | Ring or bar on tile face |
+| Color coding | No (track colors, not button colors) | No | Preset palette + custom picker |
+| Export / share | Full share sheet (audio files) | Share sheet (m4a) | Web Share API + download fallback |
+| Delete confirmation | Yes (native iOS dialog pattern) | Yes | Yes (`<dialog>`) |
 
-**Key differentiator of our approach:** Zero infrastructure, zero App Store friction, optimized for personal voice sounds only, radical simplicity. Competitors optimize for scale and variety; we optimize for speed and immediacy.
+**Key observation:** Voice Memos (Apple's own app) uses bar-style waveform and auto-trim. This confirms our approach is the iOS-native expected pattern, not an unusual deviation.
 
 ---
 
-## PWA-Specific Feature Constraints
+## PWA-Specific Constraints for v1.1 Features
 
-These are not features to build — they are platform constraints that shape how features must be implemented.
-
-| Constraint | Impact | Mitigation |
-|------------|--------|------------|
-| AudioContext requires user gesture on iOS | Cannot pre-warm audio on page load | Unlock AudioContext on the very first tap anywhere in the app |
-| getUserMedia re-prompts on each PWA launch (WebKit bug) | Users see permission dialog every session | Design the re-prompt as a normal first-run step, not an error; do not store "permission granted" assumption |
-| iOS Safari audio output switches to speaker when using getUserMedia | Earpiece audio may route to speaker during/after recording | Acceptable for a soundboard — output to speaker is correct behavior |
-| IndexedDB data eviction after ~7 days of inactivity on iOS | Sounds could disappear if app unused | Note in documentation; acceptable trade-off for personal tool. Consider periodic "keepalive" read to reset eviction timer in v2. |
-| No automatic install prompt on iOS | Users cannot be prompted to install | Show one-time "Add to Home Screen" hint in app UI; do not be aggressive about it |
-| Standalone mode may lose Safari tab context | Some web APIs behave differently standalone | Test all critical paths (recording, playback, permission) in standalone mode specifically |
-| MediaRecorder on iOS produces MP4/AAC (not WebM/Opus) | Format varies by browser | Use `MediaRecorder.isTypeSupported()` to detect format dynamically; store with correct MIME type in IndexedDB |
+| Feature | Constraint | Mitigation |
+|---------|------------|------------|
+| Waveform visualizer | iOS rAF throttled to 30fps in Low Power Mode | Design to 30fps; imperceptible difference |
+| Waveform visualizer | AnalyserNode requires AudioContext to be running | Call `ensureAudioContextRunning()` before creating MediaStreamSourceNode |
+| Tile colors | `<input type="color">` UI on iOS 14-16 is limited (no eyedropper, smaller gamut) | Preset palette covers 90% of use cases; native picker is fallback |
+| Clip export | `navigator.share()` must be called from a user gesture (tap event) | Trigger from the action sheet "Export" tap — already in a user gesture handler |
+| Clip export | iOS 14: files sharing may not work in older Safari | `canShare()` check returns false → fallback to blob download |
+| Audio trim | No AudioEncoder API on iOS Safari for MP4/AAC re-encode | Use offset metadata approach — no re-encode needed |
+| Audio trim | `AudioBuffer.getChannelData()` returns a live Float32Array (view, not copy) | Copy to a new `Float32Array` if storing; or process inline immediately |
+| Playback progress | AudioContext.currentTime continues during backgrounding | Accept minor drift; soundboard is foreground use only |
 
 ---
 
 ## Sources
 
-- [Soundboard Studio iOS App](https://soundboardstudio.com/) — competitor feature analysis
-- [MyInstants Soundboard](https://apps.apple.com/au/app/myinstants-soundboard-buttons/id1046474775) — competitor feature analysis
-- [PWA on iOS 2025 — Brainhub](https://brainhub.eu/library/pwa-on-ios) — iOS PWA limitation overview
-- [PWA iOS Limitations — MagicBell](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide) — 50MB cache limit, 7-day eviction detail
-- [MediaRecorder API on WebKit](https://webkit.org/blog/11353/mediarecorder-api/) — official Safari MediaRecorder documentation
-- [iPhone Safari MediaRecorder + Transcription](https://www.buildwithmatija.com/blog/iphone-safari-mediarecorder-audio-recording-transcription) — format detection pattern (isTypeSupported)
-- [What PWA Can Do Today — Audio Recording](https://whatpwacando.today/audio-recording/) — current capability verification
-- [getUserMedia recurring permissions bug — WebKit](https://bugs.webkit.org/show_bug.cgi?id=215884) — standalone PWA permission re-prompt bug
-- [getUserMedia standalone mode bug — WebKit](https://bugs.webkit.org/show_bug.cgi?id=185448) — getUserMedia not working in homescreen standalone mode
-- [iOS Safari forces speaker on getUserMedia](https://medium.com/@python-javascript-php-html-css/ios-safari-forces-audio-output-to-speakers-when-using-getusermedia-2615196be6fe) — audio routing behavior
-- [Unlock Web Audio in Safari — Matt Montag](https://www.mattmontag.com/web/unlock-web-audio-in-safari-for-ios-and-macos) — AudioContext unlock pattern
-- [PWA Add to Home Screen 2025](https://www.gomage.com/blog/pwa-add-to-home-screen/) — manifest requirements, iOS install flow
-- [Vinova — Safari iOS PWA Limitations](https://vinova.sg/navigating-safari-ios-pwa-limitations/) — standalone mode quirks
+- [MDN: AnalyserNode](https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode) — frequency data API, `fftSize`, buffer sizing
+- [MDN: Web Audio API Visualizations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API) — AnalyserNode + Canvas patterns
+- [Motion Blog: When browsers throttle requestAnimationFrame](https://motion.dev/blog/when-browsers-throttle-requestanimationframe) — iOS Low Power Mode 30fps throttle confirmed
+- [Popmotion: When iOS throttles requestAnimationFrame to 30fps](https://popmotion.io/blog/20180104-when-ios-throttles-requestanimationframe/) — iOS-specific rAF throttle detail
+- [web.dev: Share Files pattern](https://web.dev/patterns/files/share-files/) — `canShare()` guard + blob URL fallback pattern
+- [web.dev: Web Share API](https://web.dev/web-share/) — `navigator.share` usage and feature detection
+- [firt.dev: iOS PWA Compatibility Notes](https://firt.dev/notes/pwa-ios/) — Web Share Level 2 supported since iOS 15.0
+- [MagicBell: PWA iOS Limitations](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide) — standalone mode behavior confirmed
+- [WebKit Blog: P3 and Alpha Color Pickers](https://webkit.org/blog/16900/p3-and-alpha-color-pickers/) — `<input type="color">` iOS 17+ native picker; iOS 18.4 P3/alpha support
+- [Can I Use: input type=color](https://caniuse.com/input-color) — cross-browser support table
+- [CSS-Tricks: Building a Progress Ring, Quickly](https://css-tricks.com/building-progress-ring-quickly/) — SVG stroke-dashoffset ring pattern
+- [MDN: conic-gradient](https://developer.mozilla.org/en-US/docs/Web/CSS/gradient/conic-gradient()) — browser support, animation via custom property
+- [pavi2410.me: Detecting Silence Using Web Audio](https://pavi2410.me/blog/detect-silence-using-web-audio/) — AnalyserNode threshold-based silence detection algorithm
+- [GitHub: mdn/content issue #32019](https://github.com/mdn/content/issues/32019) — Web Share file sharing iOS edge cases
+- [UX Planet: Confirmation Dialogs](https://uxplanet.org/confirmation-dialogs-how-to-design-dialogues-without-irritation-7b4cf2599956) — button labeling best practices for destructive actions
+- [MDN: AudioBufferSourceNode.start()](https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode/start) — `start(when, offset, duration)` signature for offset-based trim
 
 ---
-*Feature research for: iPhone PWA Soundboard (personal, microphone-only, 9 fixed tiles)*
-*Researched: 2026-02-22*
+
+*Feature research for: iPhone PWA Soundboard v1.1 — new capabilities*
+*Researched: 2026-02-23*

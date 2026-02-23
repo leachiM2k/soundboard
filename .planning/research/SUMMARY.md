@@ -1,225 +1,224 @@
 # Project Research Summary
 
-**Project:** iPhone PWA Soundboard
-**Domain:** Mobile PWA — personal audio recorder/player, local-only, 9-tile fixed grid
-**Researched:** 2026-02-22
-**Confidence:** HIGH (stack, pitfalls) / MEDIUM-HIGH (features, architecture)
+**Project:** iPhone PWA Soundboard v1.1 — UX Polish and New Capabilities
+**Domain:** Mobile PWA / Web Audio API / iOS Safari
+**Researched:** 2026-02-23
+**Confidence:** HIGH
 
 ## Executive Summary
 
-This is a single-screen iPhone PWA that records voice clips via microphone and plays them back on demand — no server, no App Store, no cloud sync. The correct build approach is Vanilla TypeScript + Vite 7 + vite-plugin-pwa: no UI framework is warranted for a fixed 9-tile single-screen app, and adding one costs 30-100 KB of JS for zero architectural benefit. All audio blobs are stored in IndexedDB (via idb-keyval) and audio pipeline work uses native Web Audio API and MediaRecorder. The app is installable to the iPhone home screen and works offline after install.
+v1.1 adds seven features to an already-shipped v1.0 soundboard: waveform visualizer, delete confirmation dialog, clip duration badge, playback progress indicator, tile colors, audio trim, and clip export. The dominant research finding is that all seven features are implementable entirely with existing Web platform APIs already present in the project — no new npm packages are needed. The existing stack (TypeScript 5.8.3, Vite 7.3.1, idb-keyval 6.2.2, vite-plugin-pwa 1.2.0) remains unchanged. Four new source files will be created (`audio/trimmer.ts`, `audio/wav-encoder.ts`, `audio/exporter.ts`, `ui/confirm-dialog.ts`); the rest is targeted modification of existing modules.
 
-The iOS Safari platform is the central technical challenge. Safari imposes a strict user-gesture requirement before any AudioContext can play audio, enforces a 4-instance limit on AudioContext objects, supports only audio/mp4 (AAC) for MediaRecorder output (not WebM/Opus), routes audio output to the built-in speaker while a microphone session is active, and silences all Web Audio when the hardware mute switch is engaged. Every one of these constraints must be handled in Phase 1 audio infrastructure, because retrofitting them later is expensive. The architecture must build the audio pipeline first, verify it on a real iPhone, and only then build the UI on top.
+The recommended approach is additive: extend `SlotRecord` with an optional `color?` field (non-breaking, no migration needed), wire `AnalyserNode` into the existing single `AudioContext` singleton for live waveform visualization, drive progress tracking via `audioContext.currentTime`, implement trim as offset metadata via `AudioBufferSourceNode.start(when, offset, duration)` (zero encode cost, non-destructive), and export via Web Share API with a `<a download>` fallback. The two highest-complexity items — audio trim and clip export — are independently deferrable to v1.2 without breaking the v1.1 story. The five P1 features (delete confirmation, duration badge, waveform visualizer, playback progress, tile colors) form a complete shippable v1.1.
 
-The primary risks are iOS audio edge cases that are invisible in desktop testing and the 7-day IndexedDB eviction in Safari browser mode (mitigated by guiding users to install to home screen and calling `navigator.storage.persist()`). The product is deliberately minimal: 9 fixed tiles, microphone-only input, no labels, no cloud. Resisting scope expansion (more tiles, file import, cloud sync) is as important as building the core correctly.
-
----
+The key risks cluster around iOS Safari constraints: the 4-AudioContext limit mandates using the shared singleton; `AnalyserNode.getByteTimeDomainData()` must be used instead of the float variant; `requestAnimationFrame` must be capped at 30fps to prevent thermal throttling on older iPhones; `navigator.share()` must be called synchronously within the user gesture (no `await` before it); and WAV re-encoding (not AAC) is the only viable path for persisting trimmed audio because iOS Safari has no `encodeAudioData` API. All of these have verified mitigations documented in the research.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The entire app runs on web platform primitives with three dependencies: `idb-keyval` for IndexedDB access, `vite-plugin-pwa` for service worker generation, and TypeScript 5.9 for type safety. No UI framework. No state management library. No audio library. Vite 7 (requires Node 20.19+) handles dev server and production builds with near-zero config.
+No new dependencies. All v1.1 features use browser-native APIs on top of the existing stack. The single most important stack constraint for v1.1 is the iOS 4-AudioContext limit: the `AnalyserNode` for waveform visualization must connect to the existing `AudioContext` singleton from `player.ts` — not a new context. This requires either importing `getAudioContext()` into `recorder.ts` or extracting the singleton to a shared `audio/context.ts` module.
 
-For audio, use `MediaRecorder` (native browser API) for recording with runtime format detection via `isTypeSupported()`, and Web Audio API (`AudioContext` + `AudioBufferSourceNode`) for playback. Do not use `HTMLAudioElement` for playback — it has 300-500ms latency on iOS Safari, the wrong tool for a soundboard. Do not use localStorage for blobs (string-only, synchronous, 33% size inflation from base64). Do not use the Cache API for user recordings (7-day eviction, 50 MB limit).
+**Core technologies (unchanged from v1.0):**
+- TypeScript 5.8.3: all new features typed inline; no version change needed
+- Vite 7.3.1: no config changes required for v1.1
+- idb-keyval 6.2.2: stores the extended `SlotRecord` transparently; new optional `color?` field requires no migration
+- Web Audio API (AnalyserNode, AudioBuffer): waveform visualization and trim silence detection — already in project
+- Canvas 2D API: waveform rendering at 30fps with `devicePixelRatio` scaling — browser native
 
-**Core technologies:**
-- Vanilla TypeScript 5.9 + Vite 7: app logic, UI, audio orchestration — no framework overhead for a 9-tile single-screen app
-- vite-plugin-pwa 1.x: PWA manifest + Workbox service worker — zero-config install + offline shell generation
-- MediaRecorder API (browser native): audio capture — supported on iOS 14.5+; must use `isTypeSupported()` for format detection
-- Web Audio API (browser native): audio playback — `AudioContext` singleton, unlock on first tap, `AudioBufferSourceNode` per play
-- idb-keyval 6.2.2: IndexedDB blob storage — 600 B, promise-based, perfect key-value fit for 9 slots
+**New browser-native APIs (no installation):**
+- Web Share API Level 2 (`navigator.share({ files })`): clip export on iOS 15+; download fallback for iOS 14.x
+- CSS custom properties: per-tile color theming — all target iOS versions
+
+**What NOT to use:**
+- `getFloatTimeDomainData()` — not available on all Safari/WebKit targets; use `getByteTimeDomainData()` with `Uint8Array`
+- `stream.clone()` for AnalyserNode — historically caused audio distortion in Safari; pass the original stream reference
+- `navigator.share({ files, title })` combined — iOS Safari silently drops files when other properties are included
+- `wavesurfer.js` or any audio library — 100+ kB for functionality achievable in ~60 lines of vanilla code
+- `<input type="color">` in the action sheet — native iOS picker is too large and visually jarring; use a preset swatch row
 
 ### Expected Features
 
-Research identifies a tight MVP: the core loop is "tap empty tile to record, tap again to stop, tap filled tile to play." Everything else is enhancement or explicit anti-feature.
+**Must have (table stakes) — P1, ship in v1.1:**
+- Delete confirmation dialog — prevents irreversible accidental deletion; reuses existing `<dialog>` pattern from `rename-dialog.ts`; LOW complexity
+- Clip duration badge (playing state fix) — expected by users; `durationSeconds` already in `SlotRecord`; LOW complexity (1-line fix in `tile.ts`)
+- Waveform visualizer during recording — removes "am I being recorded?" anxiety; bar-style frequency visualizer (not oscilloscope); MEDIUM complexity
 
-**Must have (table stakes) — v1:**
-- Tap to play sound with interrupt-on-re-tap — the entire premise; must be near-instant
-- Tap-to-start / tap-to-stop recording — simpler and better than hold-to-record for arbitrary-length clips
-- Visual empty vs. filled tile state — users cannot orient themselves without it
-- Recording active indicator (pulsing animation) — users must know the mic is live
-- Long-press context menu: Delete and Re-record — essential management
-- Confirmation dialog on delete — prevents accidental data loss
-- Sound persistence in IndexedDB across sessions — any loss of recordings destroys trust
-- Microphone permission requested on first record attempt, not on load
-- AudioContext unlocked on first user interaction — hard iOS prerequisite, invisible to user
-- PWA manifest + service worker + HTTPS — required for home screen install
-- Offline capability after install
+**Should have (differentiators) — P2, ship in v1.1 if schedule allows:**
+- Playback progress indicator — ring or bar driven by `audioContext.currentTime`; MEDIUM complexity
+- Tile colors — preset palette of 8 swatches + optional `SlotRecord.color` field; MEDIUM complexity
+- Clip export (Web Share API + download fallback) — MEDIUM complexity; can defer to v1.2
+- Audio trim (offset-based, no re-encode) — MEDIUM-HIGH complexity; `source.start(0, trimStart, duration)`; can defer to v1.2
 
-**Should have (competitive) — v1.x:**
-- Haptic feedback on tap/record — feels native, 10-15ms vibrate via `navigator.vibrate()`
-- Recording waveform visualizer — validates mic is capturing, mitigates mute-switch confusion
-- Pre-decoded audio buffer cache — eliminates any decode latency on repeat plays
-- Graceful microphone re-prompt handling for PWA standalone mode (WebKit bug #215884)
+**Defer to v2+:**
+- Interactive waveform scrubber for trim — 3-5 days of work; auto-trim covers most use cases
+- Encode trimmed audio back to MP4/AAC — requires WASM codec; offset-based approach is strictly better
+- Waveform during playback — progress indicator is sufficient; out-of-scope for v1.1
 
-**Defer (v2+):**
-- Full-screen display mode / safe-area inset polish for notched iPhones
-- Storage usage indicator
-- iOS 16.4+ install prompt hint UI
-- Any kind of cloud sync, file import, or label system — explicit anti-features, not deferred features
-
-**Explicit anti-features (never build):**
-- Text labels on tiles (breaks zero-friction flow, forces label-entry UI)
-- More than 9 tiles (destroys single-screen constraint)
-- Cloud sync / backup (requires backend, auth, GDPR handling)
-- Import audio files (scope explosion, breaks "your voice" value prop)
-- Hold-to-record (fatiguing for long clips, breaks on accidental release)
-- Per-tile volume control (this is not a mixer)
-- Simultaneous sound overlap (cacophony; use interrupt-on-tap instead)
+**Anti-features confirmed by research:**
+- 60fps waveform animation — iOS throttles rAF to 30fps in Low Power Mode; cap at 30fps, imperceptible difference
+- `timeslice` on MediaRecorder for waveform — unreliable on iOS Safari; existing `recorder.ts` correctly avoids it
+- Oscilloscope-style (time-domain) waveform — looks inactive with quiet audio; bar-style frequency visualizer always shows activity
 
 ### Architecture Approach
 
-The app has four layers: UI (TileView components), a State Controller (9-slot array, single source of truth), Audio Pipeline (Recorder and Player modules), and Storage (IndexedDB via idb-keyval). All layers communicate through the State Controller — tiles never call audio or DB APIs directly. The Service Worker handles only the app shell (HTML/CSS/JS); audio blobs are never stored in Cache API. This separation allows each module to be built and tested independently.
+v1.1 is a surgical extension of the existing v1.0 module boundaries, which are sound and should be preserved. The dominant patterns are: new capabilities hook into existing state-machine transitions in `main.ts` via RAF loops; new `<dialog>` elements follow the `clone-before-wire` pattern established by `rename-dialog.ts`; data model changes are additive optional fields on `SlotRecord`; and new audio modules (`trimmer.ts`, `wav-encoder.ts`, `exporter.ts`) are standalone with no circular dependencies.
 
-**Major components:**
-1. State Controller (`state/store.js`) — 9-slot array with explicit state machine per slot (`empty → recording → saving → has-sound`); orchestrates all transitions; single source of truth
-2. Recorder (`audio/recorder.js`) — MediaRecorder wrapper with format detection; emits blob on stop; stateless between recordings
-3. Player (`audio/player.js`) — AudioContext singleton with unlock logic; decodes blob to AudioBuffer; plays via BufferSourceNode
-4. Storage API (`storage/db.js`) — idb-keyval wrapper; loads all slots on boot, persists blob+mimeType on save, deletes on remove
-5. TileView (`components/tile.js`) — pure rendering; reflects state via CSS classes; emits tap and long-press events upward
-6. ContextMenu (`components/context-menu.js`) — long-press overlay with Delete/Re-record; dispatches to State Controller
-7. Service Worker — caches app shell only; generated by vite-plugin-pwa
+**Components and v1.1 changes:**
 
-**Build order (based on architectural dependencies):**
-Storage → Format detection → Recorder → Player → State Controller → TileView → ContextMenu → App bootstrap → Service Worker
+| Component | v1.0 Role | v1.1 Change |
+|-----------|-----------|-------------|
+| `audio/recorder.ts` | MediaRecorder wrapper | MODIFIED: creates and returns `AnalyserNode` from shared `AudioContext` |
+| `audio/player.ts` | playBlob, stopTile, cache | MODIFIED: tracks `startedAt`/`duration` per tile; exports `getPlaybackInfo()` |
+| `audio/trimmer.ts` | — | NEW: silence detection via amplitude threshold on `AudioBuffer.getChannelData()` |
+| `audio/wav-encoder.ts` | — | NEW: RIFF WAV encoder (~44-byte header + int16 PCM; ~30 lines; no deps) |
+| `audio/exporter.ts` | — | NEW: `navigator.share({ files })` with `canShare()` guard + `<a download>` fallback |
+| `storage/db.ts` | idb-keyval CRUD | MODIFIED: adds `color?: string` to `SlotRecord` (non-breaking) |
+| `state/store.ts` | 9-slot state machine | MODIFIED: adds `color?: string` to `TileData`; `transitionTile` preserves color |
+| `ui/tile.ts` | Render tile state | MODIFIED: progress bar (playing), waveform canvas (recording), user color via CSS var |
+| `ui/action-sheet.ts` | Re-record / Rename / Delete | MODIFIED: Export, Trim, color swatch row, confirm-delete wrapper |
+| `ui/confirm-dialog.ts` | — | NEW: `showConfirmDialog(message): Promise<boolean>` |
+| `main.ts` | Orchestrates all events | MODIFIED: RAF loops for waveform + progress; handlers for export, trim, color change |
+
+**Architecture-mandated build order:**
+Schema first (db.ts, store.ts) → confirm dialog → duration badge fix → tile colors → playback progress → waveform visualizer → audio trim → clip export
 
 ### Critical Pitfalls
 
-1. **AudioContext requires user gesture unlock** — Create one shared `AudioContext` singleton; call `audioContext.resume()` inside the very first `touchend` or `click` handler before any playback. Safari silently fails (no error, no audio) if this is skipped. Also handle `"interrupted"` state (phone calls, notifications) by calling `resume()` at the start of every tap handler. Never create more than one AudioContext — Safari hard-limits at 4 instances.
+**v1.1-specific (highest risk):**
 
-2. **HTMLAudioElement latency makes it wrong for soundboard** — `HTMLAudioElement` has 300-500ms delay on iOS Safari. Use Web Audio API exclusively: decode blobs to `AudioBuffer` on app startup and play via `AudioBufferSourceNode`. This gives near-zero latency. This is not retrofittable — choose Web Audio from day one.
+1. **AnalyserNode connected to wrong AudioContext** — Creating a second `AudioContext` for the AnalyserNode hits the iOS 4-context limit after 4 recording sessions. Use `getAudioContext()` from `player.ts` inside `recorder.ts`; connect via `ctx.createMediaStreamSource(stream)`; do NOT connect to `ctx.destination` (causes mic feedback loop).
 
-3. **MediaRecorder iOS format incompatibility** — iOS Safari only supports `audio/mp4` (AAC); WebM/Opus throws `NotSupportedError`. Always use `MediaRecorder.isTypeSupported()` at startup and store the detected MIME type alongside every blob in IndexedDB. Never hardcode `audio/webm`.
+2. **RAF loops not cleaned up after recording or playback stops** — The orange iOS mic indicator persists in the status bar; CPU drain continues between sessions. Must call `cancelAnimationFrame(rafId)`, `micSource.disconnect()`, and `analyserNode.disconnect()` in ALL stop paths: manual stop, 30s auto-stop, and error paths.
 
-4. **IndexedDB eviction in Safari browser mode** — Recordings in Safari browser tabs (not installed as PWA) are evicted after 7 days of inactivity. Mitigation: call `navigator.storage.persist()` on first launch, show a one-time "Add to Home Screen" prompt before users record anything valuable.
+3. **`navigator.share()` called after an `await`** — iOS Safari considers transient activation expired after any `await` boundary; throws `NotAllowedError`. Pre-load the blob from `SlotRecord` before the gesture fires; call `navigator.share()` synchronously from the button click handler with no intermediate awaits.
 
-5. **Long-press collides with iOS Safari native callout** — The `contextmenu` event does not fire reliably on iOS. Implement long-press via `touchstart` → 500ms timer with `touchend`/`touchmove` cancellation. Use `-webkit-touch-callout: none` + `-webkit-user-select: none` CSS plus `contextmenu` `preventDefault()`. CSS alone is broken in iOS 15-26; JS backup is mandatory.
+4. **Stale `AudioBuffer` cache after trim** — Saving a trimmed WAV blob without calling `clearAudioCache(index)` causes the next tap to play the old untrimmed audio from the in-memory cache. `clearAudioCache(index)` must be called immediately after every `saveSlot` that replaces a blob.
 
-6. **Microphone re-permission prompts in standalone PWA mode** — WebKit bug #215884 ties microphone permission to the exact URL. Never use URL hash changes or pushState navigation. Keep the app on a single URL (`/`) and use in-memory state only. Reuse the `MediaStream` object across recordings rather than calling `getUserMedia` repeatedly.
+5. **AAC encoder priming frames cause over-trimming of quiet recordings** — iOS AAC encoder inserts 1024-2048 silent priming samples at the start of every recording. A naive threshold scan will find the first real audio a few milliseconds late — acceptable for loud content but may clip the attack of whispered sounds. Skip first 1024 samples before scanning; use threshold 0.005–0.01; enforce a minimum viable clip length (>0.1s) to prevent over-trimming.
 
----
+**v1.0 pitfalls still relevant to v1.1 operation:**
+
+6. **`AudioContext` in `"interrupted"` state** — Phone calls and backgrounding suspend the context. Already handled in v1.0 via `visibilitychange` listener; must not be broken by v1.1 changes to `recorder.ts` or `player.ts`.
+
+7. **`SlotRecord` backward compatibility** — Existing v1.0 records will not have `color`, `trimStart`, or `trimEnd`. Every consumer of new fields must use `record.color ?? defaultValue`; never assume field presence. Validate stored colors with `CSS.supports('color', value)` before applying to style.
 
 ## Implications for Roadmap
 
-Based on combined research, the pitfall-to-phase mapping and architectural build order both converge on the same phase structure: audio infrastructure first, then UI, then PWA polish, then UX enhancements.
+Based on research, the architecture specifies a clear 8-step build order driven by schema dependencies and iOS verification risk. The recommended phase grouping collapses these into 3 delivery phases:
 
-### Phase 1: Audio + Storage Infrastructure
+### Phase 1: Foundation — Schema, Dialog, Badge
 
-**Rationale:** All iOS Safari audio constraints (AudioContext unlock, format detection, latency) must be resolved before UI is built on top. Retrofitting these is HIGH cost (full subsystem rewrite). Architecture research explicitly recommends building and verifying the audio pipeline on a real iOS device before adding UI. Storage must be correct from the start to avoid data loss.
+**Rationale:** Schema changes must land before any feature reads the new fields. Delete confirmation and duration badge are the lowest-risk changes and validate the `<dialog>` pattern before the more complex RAF-driven features. These are fully unblocked — no new APIs, no iOS verification risk.
 
-**Delivers:** Working audio record → store → play pipeline; correct MIME type detection; idb-keyval storage layer; AudioContext singleton with unlock + interrupted-state recovery; `navigator.storage.persist()` call.
+**Delivers:** Non-destructive delete flow, visible clip duration on all tile states, `SlotRecord.color` field ready for Phase 2
 
-**Addresses:** Tap-to-record (start/stop), tap-to-play, sound persistence, AudioContext unlock, microphone permission on demand.
+**Implements:**
+- `SlotRecord.color?: string` in `storage/db.ts`; `TileData.color?: string` in `state/store.ts`; `transitionTile` color preservation
+- `ui/confirm-dialog.ts` (new) — `showConfirmDialog(message): Promise<boolean>`
+- Delete confirmation wire-up in `action-sheet.ts` and `main.ts`
+- Duration badge fix in `tile.ts` (add to `'playing'` state branch — currently missing)
 
-**Avoids:** AudioContext user-gesture pitfall, HTMLAudioElement latency pitfall, MediaRecorder MIME type pitfall, IndexedDB eviction pitfall, microphone re-permission pitfall. These all have HIGH recovery cost if addressed later.
+**Avoids:** SlotRecord backward-compatibility pitfall — establishes the `?? defaultValue` optional field pattern before tile color consumers land
 
-**Research flag:** Standard patterns (MDN + WebKit official docs cover all of this). No additional research needed.
+**Research flag:** Standard patterns. `<dialog>` is proven in production v1.0; `durationSeconds` already in `SlotRecord`; straightforward additive changes. No research needed.
 
-### Phase 2: Tile UI and Interaction Layer
+### Phase 2: Visual Feedback — Waveform, Progress, Color
 
-**Rationale:** TileView and ContextMenu depend on the State Controller which depends on the audio pipeline being defined. Build the UI after the audio contract is stable. Long-press handling must be built correctly from day one (MEDIUM recovery cost if retrofitted).
+**Rationale:** All three features modify `tile.ts` and `main.ts` together, so batching them minimizes merge complexity. Waveform visualizer carries the highest iOS verification risk of any v1.1 feature (AnalyserNode on live MediaStream); it must be tested on real hardware before shipping. Progress indicator and tile colors have lower risk and can ship in parallel.
 
-**Delivers:** 3x3 grid layout (CSS Grid); TileView rendering with empty/recording/has-sound states; tap event handling; long-press context menu with Delete and Re-record; recording active indicator (pulsing animation); confirmation dialog for delete; AudioContext unlock wired to first tap.
+**Delivers:** Live waveform during recording, progress ring/bar during playback, per-tile color identity — the full "this app feels polished" moment for v1.1
 
-**Addresses:** Visual empty vs. filled tile distinction, recording active indicator, long-press management actions, interrupt-on-re-tap playback behavior.
+**Implements:**
+- Waveform visualizer: `recorder.ts` (AnalyserNode from shared AudioContext) + `tile.ts` (canvas element in recording state) + `main.ts` (30fps RAF loop with cleanup)
+- Playback progress: `player.ts` (`getPlaybackInfo()`) + `tile.ts` (progress element in playing state) + `main.ts` (RAF loop cancelled on `source.onended`)
+- Tile colors: `tile.ts` (CSS custom property `--tile-color`) + `action-sheet.ts` (8-swatch preset row) + `main.ts` (`handleColorChange`) + `index.html`
 
-**Avoids:** Long-press native callout pitfall (build touch event handling correctly from the start); accidental recording start on long-press (distinguish short-tap vs. long-press timing at 400-500ms threshold).
+**Avoids:** 60fps thermal throttle (cap rAF at 30fps from day one), AnalyserNode wrong source (use `getAudioContext()` singleton), RAF loop leak (cancel in all stop paths including error paths)
 
-**Research flag:** Standard patterns. CSS Grid and custom touch events are well-documented. Test long-press on real device, not simulator.
+**Research flag:** Needs real-device verification for AnalyserNode. `getByteTimeDomainData()` returning all-128 (flat) is a known iOS bug on some WebKit builds — implement the flat-line graceful degradation before device testing. Verify orange mic dot cleanup via Safari profiler after recording stops.
 
-### Phase 3: PWA Shell and Offline
+### Phase 3: Audio Operations — Trim and Export (Deferrable)
 
-**Rationale:** Service worker should be added as a dedicated step, not bundled with feature work. Offline-first behavior requires explicit testing (offline launch from Home Screen). Architecture research recommends service worker last in build order since app works without it during development.
+**Rationale:** The two most complex features are independent of Phase 2 and can slide to v1.2 without breaking the v1.1 story. Trim must land before export so the exporter sees the correct `mimeType` on trimmed clips (`audio/wav`, not `audio/mp4`). Both introduce new audio modules that benefit from isolated testing.
 
-**Delivers:** vite-plugin-pwa configuration with manifest; app shell precache (HTML, CSS, JS, icons); offline launch from Home Screen; `apple-touch-icon` meta tag for iOS home screen icon; `display: standalone` + `viewport-fit=cover` for full-screen appearance; HTTPS (required for `getUserMedia`).
+**Delivers:** Shorter, cleaner clips via auto-trim with silence detection; ability to share clips via iOS share sheet or file download
 
-**Addresses:** PWA installability, offline-first capability, full-screen standalone appearance.
+**Implements:**
+- Audio trim: `audio/trimmer.ts` (new — amplitude threshold silence detection) + `audio/wav-encoder.ts` (new — RIFF WAV encoder) + `action-sheet.ts` (Trim button) + `main.ts` (`handleTrim`, `clearAudioCache` call)
+- Clip export: `audio/exporter.ts` (new — Web Share API + download fallback) + `action-sheet.ts` (Export button) + `main.ts` (`handleExport`, pre-loaded blob)
 
-**Avoids:** Service worker cache conflict pitfall (version cache names, delete old caches on activate); Cache API for audio blobs (never — blobs stay in IndexedDB); missing `apple-touch-icon` (iOS ignores manifest icons for home screen).
+**Avoids:** WAV re-encode pitfall (store trimmed audio as WAV, update `mimeType` to `'audio/wav'`, clear `audioBufferCache`), `navigator.share()` transient activation pitfall (pre-load blob before user gesture), `canShare()` missing guard (always check before calling share), download fallback in standalone PWA mode (detect `navigator.standalone` and avoid the `<a download>` path; use share sheet only)
 
-**Research flag:** Standard patterns. vite-plugin-pwa is zero-config for this use case. Mandatory: test offline launch from home screen with airplane mode before marking phase complete.
-
-### Phase 4: UX Polish and Resilience
-
-**Rationale:** These features add significant perceived quality but have no blocking dependencies. Safe to defer past core functionality validation. User feedback from real device testing will prioritize this work.
-
-**Delivers:** Haptic feedback (`navigator.vibrate()`, 10-15ms on play, 30ms on record start/stop); recording waveform visualizer (Canvas or CSS + `AnalyserNode`); pre-decoded AudioBuffer cache on boot (eliminates repeat-play latency); graceful microphone re-prompt UX for standalone WebKit bug; one-time "Add to Home Screen" hint shown in Safari browser mode.
-
-**Addresses:** Haptic feedback, waveform visualizer, immediate playback readiness, IndexedDB eviction guidance for non-installed users.
-
-**Avoids:** Mute-switch silence confusion (waveform animation shows app is alive even without sound output); data eviction for non-installed users (Home Screen install prompt shown before first recording).
-
-**Research flag:** Waveform visualizer (AnalyserNode integration) may benefit from a quick look at Canvas API docs if unfamiliar. Everything else is straightforward.
+**Research flag:** Needs real-device testing for Web Share file attachment on iOS 15+ and for trim quality on real recordings. Calibrate silence threshold against actual iPhone recordings before shipping. If schedule is tight, Phase 3 slides cleanly to v1.2.
 
 ### Phase Ordering Rationale
 
-- Audio infrastructure before UI because iOS Safari audio bugs have HIGH recovery cost and zero visibility in the simulator — they must be found and fixed on a real device before the UI is built on top.
-- UI before PWA because the service worker is the last dependency in the architectural build order and the app functions correctly without it during development.
-- PWA shell before UX polish because installation is a prerequisite for testing data persistence and standalone-mode permission behavior.
-- UX polish last because it enhances a working product rather than enabling it.
+- Schema before UI: every downstream feature reads `SlotRecord.color`; landing it first means no feature is blocked by missing data model
+- Low-risk dialog/badge changes co-located with schema (Phase 1) to produce an immediately useful delta and validate the `<dialog>` pattern
+- RAF-driven visual features grouped together (Phase 2) because they share the same RAF loop cleanup patterns and all modify `tile.ts` and `main.ts`; doing them together reduces integration surface and makes real-device testing efficient
+- New audio module features last (Phase 3) because they are the most complex, have the most iOS-specific failure modes, are independently deferrable to v1.2, and trim must precede export for correct `mimeType` on trimmed files
+- This order matches the architecture document's recommended 8-step build sequence exactly
 
 ### Research Flags
 
-Phases with standard, well-documented patterns — skip additional research:
-- **Phase 1 (audio + storage):** Web Audio API and MediaRecorder are documented in MDN and official WebKit blog posts. Patterns are proven.
-- **Phase 2 (tile UI):** CSS Grid and custom touch event handling are standard. No novel patterns.
-- **Phase 3 (PWA shell):** vite-plugin-pwa is zero-config for single-screen apps.
+Phases needing real-device verification before marking complete:
+- **Phase 2 (Waveform):** AnalyserNode on `createMediaStreamSource` has a known iOS Safari zero-fill bug on some WebKit builds. Implement flat-line graceful fallback before device testing. Verify orange mic dot cleanup via Safari profiler.
+- **Phase 3 (Trim):** AAC encoder priming delay affects silence detection. Test on real recordings (whispered content, ambient noise) before finalizing threshold. Verify trimmed WAV blob decodes correctly with `decodeAudioData` on iOS.
+- **Phase 3 (Export):** Web Share Level 2 file attachment on iOS 15+ must be verified on device in standalone PWA mode. Confirm `canShare({ files: [audioMp4File] })` returns `true` for iOS-recorded `audio/mp4` blobs.
 
-Phases that may need targeted research during implementation:
-- **Phase 4 (waveform visualizer):** AnalyserNode + Canvas or CSS animation integration is moderately complex. If the implementer is not familiar with the Web Audio AnalyserNode API, a focused research spike is worthwhile before writing code.
-
----
+Phases with standard patterns (no additional research needed):
+- **Phase 1 (Confirm dialog, duration badge):** `<dialog>` pattern proven in v1.0 production; `durationSeconds` already in `SlotRecord`; straightforward additive changes.
+- **Phase 2 (Progress indicator):** `AudioContext.currentTime`-based RAF pattern is well-documented; no iOS-specific unknowns.
+- **Phase 2 (Tile colors):** CSS custom property application and idb-keyval optional field storage are proven patterns.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Core technologies verified against official sources (WebKit blog, Vite 7 release notes, npm registry, TypeScript release notes). Version numbers confirmed current. |
-| Features | HIGH (core) / MEDIUM (PWA constraints) | Table-stakes features are obvious from domain. PWA-specific constraints (permission re-prompt bug, eviction behavior) verified across multiple sources including WebKit bug tracker. |
-| Architecture | HIGH (core pipeline) / MEDIUM (iOS edge cases) | Component structure and data flow are well-established for this pattern. iOS edge cases documented via WebKit blogs and community post-mortems. |
-| Pitfalls | HIGH | Multiple independent sources agree on all 9 pitfalls. WebKit bug tracker references provided for platform bugs. Recovery costs are accurately assessed. |
+| Stack | HIGH | All APIs verified via MDN official docs; no new dependencies; existing stack confirmed stable through v1.0 ship; v1.1 adds only browser-native APIs |
+| Features | HIGH (P1) / MEDIUM (P2 iOS edge cases) | P1 features have confirmed patterns in the codebase; export and trim iOS behavior (encoder delay, Web Share MIME allowlist) have MEDIUM confidence from community sources |
+| Architecture | HIGH (integration points, data model) / MEDIUM (AnalyserNode iOS, WAV re-encode) | Module boundaries and build order are clear; WAV encoder approach is pragmatic but untested in this codebase specifically |
+| Pitfalls | HIGH | Multiple verified sources: WebKit bug tracker, MDN, Apple Developer Forums, Tone.js community reports; pitfall list is comprehensive with recovery strategies and verification checklists |
 
-**Overall confidence: HIGH**
-
-The domain is well-researched. The iOS Safari constraints are the one area of genuine complexity, and they are thoroughly documented. No major architectural unknowns remain. The main execution risk is missing iOS-specific bugs during development by testing on desktop instead of a real iPhone.
+**Overall confidence:** HIGH for Phase 1 and Phase 2; MEDIUM for Phase 3 (trim + export require real-device validation before shipping)
 
 ### Gaps to Address
 
-- **Mute switch (hardware ringer):** There is no reliable API to detect mute state from JavaScript in a PWA. The mitigation (visual waveform animation so users can tell the app is working) is the correct approach, but users who do not understand why they hear no sound will still be confused. Consider a first-run hint about the mute switch.
-- **iOS 14.5 minimum target:** MediaRecorder is enabled by default from 14.5. iOS 14.3 and 14.4 have it disabled by default (requires a Settings toggle). If the user base includes iOS 14.3/14.4 devices, a compatibility check and graceful degradation message is needed. If targeting iOS 15+, this is a non-issue.
-- **Service worker update UX:** vite-plugin-pwa provides `workbox-window` for communicating app updates to users. The MVP does not need this, but skipping it entirely means users may run stale cached versions indefinitely. Worth noting as a v1.x concern.
-- **Real device testing cadence:** The simulator does not enforce the AudioContext user-gesture requirement the same way a real iPhone does. All audio testing must happen on a physical iPhone. This is an execution constraint, not a research gap, but it must be planned for.
-
----
+- **AnalyserNode flat-data on target device:** Confirm `getByteTimeDomainData()` behavior on the development iPhone (the known zero-fill bug is pre-iOS 14.3; project requires iOS 14.3+, so it should be fixed). Implement the `all-128` flat-line fallback regardless, then verify on device.
+- **Silence threshold calibration:** The `0.01` amplitude threshold is a research-derived starting point. Real-world recordings on the target iPhone require manual tuning during Phase 3 implementation. Plan a 15-minute calibration session with varied recording types (loud, soft, whispering, ambient noise).
+- **Standalone PWA download fallback:** The `<a download>` fallback does not download to a visible file in iOS standalone mode — it opens Safari instead. For standalone mode, the share sheet must succeed, or the UX is confusing. Detect `navigator.standalone` and suppress the download link in that context; show an instruction to use the share sheet instead.
+- **WAV file size in IndexedDB after trim:** Trimmed WAV blobs are approximately 5-10x larger than the original AAC blobs for the same audio duration. For 9 tiles × 30s clips, worst-case storage is ~22 MB. This is within iOS IndexedDB quota for installed PWAs, but worth monitoring. If storage becomes a concern, the offset-based trim approach (no re-encode, no size increase) is available as a fallback that avoids the WAV encoding step entirely.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- WebKit Blog — MediaRecorder API: https://webkit.org/blog/11353/mediarecorder-api/ — iOS MIME types, format support
-- WebKit Blog — Updates to Storage Policy: https://webkit.org/blog/14403/updates-to-storage-policy/ — IndexedDB eviction, home screen PWA quota
-- Vite 7.0 release announcement: https://vite.dev/blog/announcing-vite7 — version and Node requirements
-- TypeScript release notes (5.9): https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-9.html — stable version confirmed
-- npm — idb-keyval 6.2.2: https://www.npmjs.com/package/idb-keyval — version, API, size
-- Can I Use — MediaRecorder: https://caniuse.com/mediarecorder — iOS 14.5 support timeline
-- MDN — Web Audio API Best Practices: https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices
-- MDN — Storage quotas and eviction criteria: https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria
+- [MDN — Web Audio API Visualizations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API) — AnalyserNode + Canvas exact pattern
+- [MDN — AnalyserNode](https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode) — `fftSize`, `frequencyBinCount`, `getByteTimeDomainData`
+- [MDN — AudioBuffer](https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer) — `getChannelData`, `copyToChannel` for trim
+- [MDN — Web Share API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Share_API) — `navigator.share`, `canShare`
+- [MDN — AudioBufferSourceNode.start()](https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode/start) — `start(when, offset, duration)` for offset-based trim
+- [web.dev — Integrate with the OS sharing UI](https://web.dev/articles/web-share) — file sharing pattern, `canShare({ files })` usage
+- [GitHub MDN content issue #32019](https://github.com/mdn/content/issues/32019) — confirmed iOS files-only constraint (no title/text alongside files)
+- [CSS-Tricks — Building a Progress Ring Quickly](https://css-tricks.com/building-progress-ring-quickly/) — SVG stroke-dashoffset ring pattern
+- [WebKit Blog — MediaRecorder API](https://webkit.org/blog/11353/mediarecorder-api/) — iOS `audio/mp4` only
+- [WebKit Blog — P3 and Alpha Color Pickers](https://webkit.org/blog/16900/p3-and-alpha-color-pickers/) — `<input type="color">` iOS 17+ native picker
 
 ### Secondary (MEDIUM confidence)
-- Prototyp Digital — What we learned about PWAs and audio playback: https://blog.prototyp.digital/what-we-learned-about-pwas-and-audio-playback/
-- MagicBell — PWA iOS Limitations: https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide
-- Build with Matija — iPhone Safari MediaRecorder: https://www.buildwithmatija.com/blog/iphone-safari-mediarecorder-audio-recording-transcription
-- Matt Montag — Unlock Web Audio in Safari/iOS: https://www.mattmontag.com/unlock-web-audio-in-safari-for-ios-and-macos
-- Brainhub — PWA on iOS 2025: https://brainhub.eu/library/pwa-on-ios
-- Medium — iOS Safari forces audio output to speakers with getUserMedia: https://medium.com/@python-javascript-php-html-css/ios-safari-forces-audio-output-to-speakers-when-using-getusermedia-2615196be6fe
-- GitHub — soundboard-pwa reference implementation: https://github.com/digitalcolony/soundboard-pwa
+- [Tone.js issue #129](https://github.com/Tonejs/Tone.js/issues/129) — `getFloatTimeDomainData` not available in Safari
+- [Apple Developer Forums — WebRTC Microphone Audio AnalyserNode](https://developer.apple.com/forums/thread/91754) — iOS AnalyserNode zero-fill issue (pre-iOS 14.3 era)
+- [firt.dev — iOS PWA Compatibility Notes](https://firt.dev/notes/pwa-ios/) — Web Share Level 2 supported since iOS 15.0
+- [Motion Blog — When browsers throttle requestAnimationFrame](https://motion.dev/blog/when-browsers-throttle-requestanimationframe) — iOS Low Power Mode 30fps throttle confirmed
+- [web.dev — Share Files pattern](https://web.dev/patterns/files/share-files/) — `canShare()` guard + blob URL fallback
+- Web Audio API issue #2484 — `MediaStreamAudioSourceNode` memory leak on WebKit
+- Web Audio API issue #496 — No `encodeAudioData` API (long-standing open request)
+- [LogRocket — Advanced Guide to Web Share API](https://blog.logrocket.com/advanced-guide-web-share-api-navigator-share/) — `canShare()` detection, user gesture requirements
 
-### WebKit Bug Tracker (HIGH confidence for platform behaviors)
-- Bug #215884 — getUserMedia recurring permission prompts in standalone: https://bugs.webkit.org/show_bug.cgi?id=215884
-- Bug #237878 — AudioContext suspended when page backgrounded: https://bugs.webkit.org/show_bug.cgi?id=237878
-- Bug #237322 — Web Audio muted when ringer is muted: https://bugs.webkit.org/show_bug.cgi?id=237322
-- Bug #198277 — Background audio stops in standalone PWA: https://bugs.webkit.org/show_bug.cgi?id=198277
+### Tertiary (LOW confidence — needs real-device validation)
+- WebKit Bug #237878 — AudioContext suspended when page backgrounded
+- WebKit Bug #215884 — getUserMedia recurring permission prompts in standalone mode
+- Community reports on AAC encoder priming delay — threshold behavior needs real-device calibration with the specific iOS version in use
 
 ---
-*Research completed: 2026-02-22*
+*Research completed: 2026-02-23*
 *Ready for roadmap: yes*

@@ -1,154 +1,287 @@
 # Stack Research
 
-**Domain:** iPhone PWA Soundboard — audio recording, playback, local-only storage
-**Researched:** 2026-02-22
-**Confidence:** MEDIUM-HIGH (core web APIs verified via official sources; version numbers from npm/GitHub)
+**Domain:** iPhone PWA Soundboard v1.1 — UX polish and new capabilities added to an existing v1.0 app
+**Researched:** 2026-02-23
+**Confidence:** HIGH (web platform APIs verified via MDN/WebKit; iOS-specific pitfalls confirmed via Apple Developer Forums and community reports)
+
+---
+
+## Context: No New Dependencies Required
+
+The seven v1.1 features are fully implementable with **existing Web platform APIs already present in the project**. No new npm packages are needed. The existing stack (TypeScript 5.8.3, Vite 7.3.1, idb-keyval 6.2.2, vite-plugin-pwa 1.2.0) does not change.
+
+| Feature | API Required | Already In Project? |
+|---------|-------------|---------------------|
+| Waveform visualizer | AnalyserNode, Canvas 2D | AudioContext exists in `src/audio/player.ts` |
+| Delete confirmation dialog | HTMLDialogElement | Pattern established in `src/ui/rename-dialog.ts` |
+| Clip duration badge | Existing `durationSeconds` in SlotRecord | Already in `src/storage/db.ts` |
+| Playback progress indicator | CSS animation + JS timing | No new API |
+| Tile colors | CSS custom properties + idb-keyval | idb-keyval already installed |
+| Audio trim | AudioBuffer, createBuffer, getChannelData | AudioContext already in use |
+| Clip export | Web Share API + URL.createObjectURL | Browser native |
 
 ---
 
 ## Recommended Stack
 
-### Core Technologies
+### Core Technologies — No Changes
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Vanilla JS + TypeScript | TS 5.9 | App logic, UI, audio orchestration | No framework overhead for a single-screen app with 9 tiles; TS 5.9 is the latest stable ES-standard version; TypeScript 6.0 is in beta (Go-native rewrite in 7.0 is alpha — do not use yet) |
-| Vite | 7.x (7.3.1 latest) | Dev server, build, asset bundling | Industry-standard for vanilla/TS projects; lightning-fast HMR; pairs with vite-plugin-pwa for zero-config service worker generation; requires Node 20.19+ |
-| vite-plugin-pwa | 1.x (1.1.0 latest) | PWA manifest + Workbox service worker | Zero-config; generates manifest and pre-caches all static assets; framework-agnostic; uses Workbox 7 internally |
-| MediaRecorder API | Browser native | Audio capture via microphone | Supported in iOS Safari since iOS 14.5 (enabled by default); use `isTypeSupported()` for format detection; no library needed |
-| Web Audio API / HTML `<audio>` | Browser native | Sound playback | HTML `<audio>` element for tap-to-play (handles iOS mute-switch correctly); Web Audio API for `AudioContext` unlock pattern and latency-critical playback |
-| IndexedDB via idb-keyval | 6.2.2 | Persistent audio blob storage | Tiny (~600 B); promise-based key-value API on top of IndexedDB; authored by Jake Archibald (Google); simpler API than the full `idb` library — 9 blobs stored by tile index is a perfect key-value use case |
+| Technology | Version | Purpose | v1.1 Role |
+|------------|---------|---------|-----------|
+| TypeScript | 5.8.3 | Type safety | All new features typed inline |
+| Vite | 7.3.1 | Build + dev server | No config changes needed |
+| idb-keyval | 6.2.2 | IndexedDB storage | Store tile `color` field in existing SlotRecord |
+| Web Audio API | Browser native | Audio pipeline | AnalyserNode for visualizer; AudioBuffer manipulation for trim |
 
-### Supporting Libraries
+### New Web APIs (No Installation — Browser Native)
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| idb-keyval | 6.2.2 | Store/retrieve audio Blob by tile key in IndexedDB | Always — raw IndexedDB API is verbose and error-prone |
-| workbox-window | 7.x (via vite-plugin-pwa) | Communicate with service worker for update prompts | When adding "update available" UX (optional at MVP) |
+| API | Purpose | iOS Safari Version Required |
+|-----|---------|----------------------------|
+| AnalyserNode | Real-time waveform data during recording | iOS 14.3+ (confirmed via WebKit; already required for MediaRecorder) |
+| Canvas 2D (HTMLCanvasElement) | Render waveform as oscilloscope line | All target iOS versions |
+| Web Share API Level 2 | Share audio file via iOS share sheet | iOS 15+ (Level 2 with file objects) |
+| URL.createObjectURL | Blob-to-URL for file download fallback | All target iOS versions |
+| CSS custom properties | Per-tile color theming | All target iOS versions |
 
-### Development Tools
+---
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| Vite 7 | Dev server + production build | `npm create vite@latest` with `vanilla-ts` template |
-| vite-plugin-pwa | PWA manifest + service worker | Add to `vite.config.ts` as plugin; configure `manifest` inline |
-| TypeScript 5.9 | Type safety | `strict: true` in tsconfig; use `moduleResolution: "bundler"` for Vite compatibility |
-| ESLint + typescript-eslint | Lint | Catches iOS-incompatible patterns at author time |
+## Feature-by-Feature Technical Decisions
+
+### Feature 1: Waveform Visualizer During Recording
+
+**APIs:** `AnalyserNode`, `Canvas 2D`, `MediaStream`, `requestAnimationFrame`
+
+**Pattern (HIGH confidence — MDN official docs):**
+```typescript
+// Connect analyser to the existing cached MediaStream (NOT a clone)
+const ctx = getAudioContext();           // reuse existing singleton from player.ts
+const analyser = ctx.createAnalyser();
+analyser.fftSize = 1024;                 // 512 data points — sufficient for a small tile canvas
+const bufferLength = analyser.frequencyBinCount; // 512
+const dataArray = new Uint8Array(bufferLength);
+
+const source = ctx.createMediaStreamSource(stream); // stream from getMicrophoneStream()
+source.connect(analyser);
+// Do NOT connect analyser to ctx.destination — avoids mic feedback loop
+
+// rAF draw loop
+function draw() {
+  rafId = requestAnimationFrame(draw);
+  analyser.getByteTimeDomainData(dataArray);  // NOT getFloatTimeDomainData — see pitfall below
+  // ... canvas draw
+}
+
+// Cleanup on recording stop
+function stopVisualizer() {
+  cancelAnimationFrame(rafId);
+  source.disconnect();
+  analyser.disconnect();
+}
+```
+
+**Critical iOS Safari pitfall (MEDIUM confidence — Apple Developer Forums + Tone.js issues):**
+`getFloatTimeDomainData()` is NOT available on older Safari/WebKit versions. Use `getByteTimeDomainData()` with a `Uint8Array` only. This is the 8-bit integer variant (values 0–255, center = 128) and works on all iOS targets.
+
+**Known iOS 11-era bug — confirmed fixed in current iOS:** Older iOS Safari versions returned zero-filled arrays from `getByteTimeDomainData()` when using `createMediaStreamSource`. This bug is reported from iOS 11/12 era. Current iOS Safari (iOS 14.3+ which the project already requires) resolves this. However, stream isolation matters: do NOT reuse the same `MediaStream` object for both MediaRecorder and the AnalyserNode source. The `MediaRecorder` in `recorder.ts` already holds the stream; pass the same stream reference to `createMediaStreamSource` for the visualizer (do NOT call `stream.clone()`— cloning creates a second stream object and historically caused distortion in Safari).
+
+**Connection topology:**
+```
+getUserMedia() stream
+        ├── MediaRecorder (existing recorder.ts)
+        └── MediaStreamAudioSourceNode → AnalyserNode → (dead end, NOT to destination)
+```
+
+**Canvas sizing:** Target 280×60 px (`width`/`height` attributes matching CSS display size) for a tile-width waveform. Use `devicePixelRatio` scaling for sharp rendering on Retina:
+```typescript
+canvas.width = displayWidth * devicePixelRatio;
+canvas.height = displayHeight * devicePixelRatio;
+ctx2d.scale(devicePixelRatio, devicePixelRatio);
+```
+
+**fftSize recommendation:** `1024` (not the MDN default of 2048) gives 512 data points. For a ~280px wide canvas that is one data point per 0.55 px — sufficient resolution for a live recording visualizer without unnecessary CPU cost. Lower to `512` (256 data points) if CPU usage is a concern on older iPhones.
+
+---
+
+### Feature 2: Delete Confirmation Dialog
+
+**APIs:** `HTMLDialogElement` (already used for rename in `src/ui/rename-dialog.ts`)
+
+**Pattern:** Reuse the existing clone-before-wire pattern established in `rename-dialog.ts`. No new API. Trivial.
+
+---
+
+### Feature 3: Clip Duration Badge
+
+**APIs:** Existing `durationSeconds` field on `SlotRecord` (already in `src/storage/db.ts`)
+
+Format with: `Math.round(durationSeconds)` + `'s'` for display. No new API. Trivial.
+
+---
+
+### Feature 4: Playback Progress Indicator
+
+**APIs:** CSS + `AudioBufferSourceNode.context.currentTime` (already available via `getAudioContext()`)
+
+**Two viable approaches:**
+
+**Option A — SVG stroke-dashoffset ring (RECOMMENDED):**
+Inline SVG `<circle>` with `stroke-dasharray = circumference` and `stroke-dashoffset` animated from `circumference → 0` over the clip duration. Update offset via `requestAnimationFrame` using `(elapsed / duration) * circumference`.
+
+```css
+/* Tile overlay ring — pure CSS, no library */
+.progress-ring circle {
+  stroke-dasharray: var(--circ); /* set via JS: 2πr */
+  stroke-dashoffset: var(--offset); /* updated each rAF tick */
+  transition: none; /* JS drives this, not CSS transition */
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+```
+
+Advantages: resolution-independent, no additional DOM layers, integrates cleanly with existing tile `<div>` structure.
+
+**Option B — CSS linear progress bar:**
+A `<div>` with `width: 0%` animated to `100%` via `requestAnimationFrame`. Simpler to implement but visually less interesting than a ring. Use this if the ring adds too much complexity.
+
+**Timing source:** `AudioContext.currentTime` (from existing `getAudioContext()`) gives sub-millisecond precision. Record `startTime = ctx.currentTime` at `source.start(0)`, compute `elapsed = ctx.currentTime - startTime` each rAF tick.
+
+**Cleanup:** Cancel the rAF loop in the existing `source.onended` handler in `player.ts`.
+
+---
+
+### Feature 5: Tile Colors
+
+**APIs:** CSS custom properties + idb-keyval (already installed)
+
+**Storage:** Add optional `color?: string` field to `SlotRecord` in `src/storage/db.ts`. Store as a CSS color string (e.g., `'#e74c3c'`, `'hsl(120, 60%, 50%)'`). idb-keyval stores it transparently.
+
+**Rendering:** Set `tile.style.setProperty('--tile-color', record.color ?? '#2c2c2e')` and use `background-color: var(--tile-color)` in CSS. This is purely a CSS concern — no new storage technology needed.
+
+**Color picker:** Use `<input type="color">` (HTML native, no library). Works in iOS Safari. Present it from the existing long-press action sheet.
+
+**No library needed.** Do not add a color-picker library for 9 tiles.
+
+---
+
+### Feature 6: Audio Trim
+
+**APIs:** `AudioBuffer`, `BaseAudioContext.createBuffer()`, `AudioBuffer.getChannelData()`, `AudioBuffer.copyToChannel()`
+
+**Pattern — pure vanilla (HIGH confidence — MDN):**
+
+Audio trim works on the decoded `AudioBuffer` already in `audioBufferCache` in `player.ts`. No blob-level manipulation is needed — trim the AudioBuffer in memory, then re-encode to a Blob for storage.
+
+```typescript
+function trimSilence(
+  buffer: AudioBuffer,
+  threshold = 0.01,  // RMS amplitude considered "silence"
+  ctx: AudioContext,
+): AudioBuffer {
+  const channels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const data = buffer.getChannelData(0); // Use channel 0 for silence detection
+
+  // Find first non-silent sample
+  let start = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (Math.abs(data[i]) > threshold) { start = i; break; }
+  }
+
+  // Find last non-silent sample
+  let end = data.length - 1;
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (Math.abs(data[i]) > threshold) { end = i; break; }
+  }
+
+  const trimmedLength = end - start + 1;
+  const trimmed = ctx.createBuffer(channels, trimmedLength, sampleRate);
+
+  for (let c = 0; c < channels; c++) {
+    const channelData = buffer.getChannelData(c);
+    const slice = channelData.slice(start, end + 1);
+    trimmed.copyToChannel(slice, c, 0);
+  }
+  return trimmed;
+}
+```
+
+**Re-encoding to Blob:** After trimming the AudioBuffer, render it offline to get a new Blob for storage:
+```typescript
+const offlineCtx = new OfflineAudioContext(
+  trimmed.numberOfChannels,
+  trimmed.length,
+  trimmed.sampleRate,
+);
+const src = offlineCtx.createBufferSource();
+src.buffer = trimmed;
+src.connect(offlineCtx.destination);
+src.start();
+const rendered = await offlineCtx.startRendering(); // → AudioBuffer
+// rendered AudioBuffer → re-encode to Blob via MediaRecorder or WAV encoder
+```
+
+**Re-encoding limitation on iOS:** iOS Safari does not support `OfflineAudioContext` rendering back to a compressed format (no AudioEncoder API available as of 2025). The practical approach: store the trimmed AudioBuffer in `audioBufferCache` and use it for playback, but keep the original Blob in IndexedDB. For export (Feature 7), the trimmed AudioBuffer can be exported as WAV using a small inline PCM encoder (~30 lines, no library).
+
+**Threshold recommendation:** `0.01` (linear amplitude, approximately -40 dBFS) for speech/sound recordings. This cuts genuine silence without clipping voiced sounds.
+
+---
+
+### Feature 7: Clip Export via Web Share API
+
+**APIs:** `navigator.share()`, `navigator.canShare()`, `URL.createObjectURL()` (for download fallback), `File` constructor
+
+**iOS Safari version gate:** Level 2 (file objects) requires iOS 15+. The project targets iOS 14.3+, so a fallback is mandatory.
+
+**Pattern (MEDIUM confidence — web.dev + MDN + community reports):**
+```typescript
+async function exportClip(blob: Blob, filename: string): Promise<void> {
+  // Convert Blob to File (required — canShare() checks File objects, not Blobs)
+  const file = new File([blob], filename, { type: blob.type });
+
+  // iOS Safari critical: files-ONLY — do NOT include title/text/url with files
+  // Adding any other property alongside files causes silent failure on iOS
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({ files: [file] });
+  } else {
+    // Fallback: trigger browser download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+}
+```
+
+**MIME type for iOS:** The audio recorded on iOS is `audio/mp4` (AAC). When sharing, the File object's MIME type should be `audio/mp4` and the filename extension `.m4a`. iOS share sheet identifies the file as an audio file and offers AirDrop, Messages, Files app, etc.
+
+**Files-only constraint (HIGH confidence — confirmed by MDN issue #32019 and community):** On iOS Safari, `navigator.share({ files: [file], title: 'sound' })` silently drops the file and shares only the title. Use `{ files: [file] }` with no other properties for file sharing. If you want to share both a URL and a file, that requires two separate `share()` calls.
+
+**Filename recommendation:** `soundboard-tile-{index}-{timestamp}.m4a` (for iOS/AAC blobs) or `.webm` (for Chrome/WebM blobs). Detect from `blob.type`.
+
+**Standalone PWA mode:** `navigator.share()` works in standalone (home-screen) PWA mode on iOS. User gesture requirement still applies — must be called from a button tap handler.
 
 ---
 
 ## Installation
 
 ```bash
-# Bootstrap
-npm create vite@latest soundboard -- --template vanilla-ts
-cd soundboard
-
-# Storage
-npm install idb-keyval
-
-# PWA (dev dependency — build-time only)
-npm install -D vite-plugin-pwa
-
-# Lint (optional but recommended)
-npm install -D eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin
-```
-
----
-
-## iOS Safari Audio: Critical Constraints
-
-This section is the most important part of this document. iOS Safari has unique, non-obvious constraints that will cause bugs if ignored.
-
-### Constraint 1: AudioContext must be unlocked by a user gesture
-
-**Applies to:** Web Audio API, `AudioContext`
-
-iOS Safari starts every `AudioContext` in `suspended` state. You cannot play audio until the user has tapped something. Create one shared `AudioContext` instance and call `ctx.resume()` inside a `touchend` or `click` handler on the very first tap.
-
-```typescript
-// Create once, reuse everywhere
-const audioCtx = new AudioContext();
-
-// Call inside any user-gesture handler before first playback
-async function unlockAudio() {
-  if (audioCtx.state === 'suspended') {
-    await audioCtx.resume();
-  }
-}
-```
-
-This is a one-time unlock — subsequent plays on the same context work fine.
-
-### Constraint 2: HTML `<audio>` is safer than Web Audio API for simple playback
-
-**Applies to:** Playback after recording
-
-For this app (tap a tile → play a blob), use an `HTMLAudioElement` with an object URL (`URL.createObjectURL(blob)`). The `<audio>` element respects the iOS mute switch correctly (plays silently when muted) and doesn't require the `AudioContext` unlock ceremony for triggered playback. Web Audio API ignores the mute switch when using `AudioContext` directly.
-
-Recommendation: Use `<audio>` for blob playback. Use `AudioContext` only if you need precise latency control or audio effects.
-
-### Constraint 3: MediaRecorder on iOS only supports `audio/mp4` (AAC)
-
-**Applies to:** Recording
-
-iOS Safari does NOT support `audio/webm` or `audio/ogg`. The only format confirmed supported is `audio/mp4` with AAC codec. Always detect the format before initializing `MediaRecorder`:
-
-```typescript
-function getSupportedMimeType(): string {
-  const candidates = [
-    'audio/mp4;codecs=mp4a.40.2', // AAC-LC in MP4 — iOS Safari
-    'audio/mp4',                   // MP4 fallback
-    'audio/webm;codecs=opus',      // Chrome/Android
-    'audio/webm',
-    '',                            // browser default
-  ];
-  return candidates.find(t => t === '' || MediaRecorder.isTypeSupported(t)) ?? '';
-}
-```
-
-Store the recorded blob's MIME type alongside the blob in IndexedDB — you need it to create the correct `<audio>` source.
-
-### Constraint 4: `getUserMedia()` routes audio output to the built-in speaker
-
-**Applies to:** Playback during or after an active recording session
-
-When a `MediaStream` from `getUserMedia()` is active (even after recording stops), iOS Safari switches audio output from headphones to the built-in earpiece/speaker. This is an iOS system behavior with no clean fix. Mitigations:
-
-1. Stop all microphone tracks (`track.stop()`) immediately after `mediaRecorder.stop()` fires the `dataavailable` event.
-2. Add a small delay (100–200 ms) before playing back the just-recorded sound to give iOS time to re-route audio.
-3. Document the behavior: users will hear playback from the speaker during recording; that is expected and not a bug.
-
-### Constraint 5: No autoplay without user gesture
-
-iOS Safari blocks all audio playback that is not triggered by a direct user interaction (tap, click). There is no workaround — every sound play must be initiated inside a synchronous event handler or a promise chain that originates in one.
-
-For this app this is fine: every play is triggered by a tile tap.
-
-### Constraint 6: Storage persistence for home screen PWAs
-
-When the app is added to the home screen, IndexedDB data is NOT subject to the 7-day eviction rule that applies to Safari browser tabs (confirmed by WebKit's official storage policy update for iOS 17+). Home screen web apps have the same storage quota as the browser — up to 60% of total disk space.
-
-However: call `navigator.storage.persist()` on first launch to request durable storage mode. This protects IndexedDB blobs from ITP-based eviction even under storage pressure.
-
-```typescript
-if (navigator.storage?.persist) {
-  await navigator.storage.persist(); // returns true if granted
-}
+# No new packages needed for v1.1
+# All features use existing dependencies and Web platform APIs
 ```
 
 ---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| Vanilla TS + Vite | React / Vue / Svelte | If the app grows beyond one screen, adds routing, complex state, or a team with strong framework preferences |
-| idb-keyval | Raw IndexedDB API | Never for this use case — raw API is 10x more verbose with no benefit for simple key-value access |
-| idb-keyval | `idb` (full library) | If you need indexed queries, cursors, or complex relational data — not needed here |
-| HTML `<audio>` for playback | Web Audio API + AudioBufferSourceNode | If you need precise timing, effects chain, or mixing; add complexity not justified for a soundboard |
-| MediaRecorder API | RecordRTC / lamejs polyfill | Only if you must support iOS < 14.5. The project targets 14.3+ which enables MediaRecorder; however 14.3 and 14.4 marked it as "disabled by default" — document that 14.5 is the practical floor |
-| vite-plugin-pwa | Hand-rolled service worker | Only for teams needing full control of caching strategies; vite-plugin-pwa covers the standard PWA install + offline shell pattern with zero config |
+| Feature | Recommended | Alternative | Why Not |
+|---------|-------------|-------------|---------|
+| Waveform canvas | AnalyserNode + Canvas 2D (vanilla) | wavesurfer.js | 100 kB library for a feature that needs ~60 lines of vanilla code; wavesurfer has known iOS waveform bugs |
+| Progress ring | Inline SVG + rAF (vanilla) | CSS @keyframes animation | CSS animation runs at fixed duration, not tied to actual AudioBuffer playback position; rAF reads `ctx.currentTime` for accuracy |
+| Trim re-encode | Keep AudioBuffer in memory; WAV encode inline | audio-buffer-utils library | Library is 3+ years without updates; the needed operations (slice, copyToChannel) are 4 native API calls |
+| Color storage | Add `color` field to existing SlotRecord | Separate IndexedDB key per tile | SlotRecord is already per-tile; adding a field is simpler than a parallel storage structure |
+| Clip export | Web Share API + download fallback | Cordova/Capacitor file plugin | App is a PWA; no native shell; Web Share API covers the iOS share sheet natively |
 
 ---
 
@@ -156,32 +289,33 @@ if (navigator.storage?.persist) {
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `localStorage` for audio blobs | localStorage is string-only; encoding blobs as base64 inflates size 33% and is synchronous (blocks main thread) | `idb-keyval` with native `Blob` storage |
-| `audio/webm` as recording format | Not supported on iOS Safari at all; will throw on `MediaRecorder` init | Detect with `isTypeSupported()` and fall back to `audio/mp4` |
-| Multiple `AudioContext` instances | Each instance holds audio hardware resources; iOS limits concurrent contexts | Create one shared `AudioContext`, unlock on first tap, reuse |
-| `react` / `vue` for this scope | Adds 40–100 kB of framework JS for a 9-tile single-screen app that has no routing, no derived state, and minimal reactivity | DOM manipulation + a few custom events |
-| TypeScript 6.0 or 7.0 | TypeScript 6.0 is in beta; TS 7.0 (Go rewrite) is alpha/unstable; tooling ecosystem compatibility is not confirmed | TypeScript 5.9 (current stable) |
-| `navigator.mediaDevices.getUserMedia` in a `http://` context | iOS Safari requires HTTPS even on LAN for microphone access | Always serve PWA over HTTPS; Vite dev server can use `--https` flag with a local cert |
+| `getFloatTimeDomainData()` | Not available in all Safari/WebKit versions; returns zeros on older iOS | `getByteTimeDomainData()` with `Uint8Array` |
+| `stream.clone()` for AnalyserNode source | Historically caused audio distortion in Safari when cloned stream is passed to MediaStreamAudioSourceNode | Pass the original stream reference to both MediaRecorder and createMediaStreamSource |
+| `navigator.share({ files, title, text })` combined | iOS Safari silently drops files when other properties are included | `{ files: [file] }` only for file sharing |
+| `OfflineAudioContext` for re-encoding to AAC/MP4 | No Web Audio → compressed format rendering on iOS Safari | Store original Blob for playback; use AudioBuffer only in memory; export as WAV or use original blob for share |
+| `wavesurfer.js` | 100 kB+ library with known iOS Safari waveform bugs; last major release 2023; overkill for a recording indicator | 60 lines of vanilla Canvas + AnalyserNode |
+| `input type="color"` opened programmatically without a user gesture | Safari blocks programmatic `.click()` on `<input type="color">` | Trigger from within the long-press action-sheet button tap handler |
+| Adding color to a separate idb-keyval store key | Increases storage call complexity | Add optional `color?: string` field to existing `SlotRecord` |
 
 ---
 
 ## Stack Patterns by Variant
 
-**For MVP (single developer, ship fast):**
-- Vanilla TS + Vite 7 + vite-plugin-pwa
-- No UI library, no state manager
-- CSS Grid for the 3×3 tile layout
-- One `AudioContext` instance (module singleton)
-- `idb-keyval` for all persistence
-- `MediaRecorder` with `isTypeSupported()` format detection
+**If iOS 14.3–14.4 users must be supported (no Web Share Level 2):**
+- `navigator.canShare()` returns false for files on these versions
+- Download fallback via `URL.createObjectURL + <a download>` activates automatically
+- All other v1.1 features work on iOS 14.3+
 
-**If adding audio effects (reverb, pitch shift) later:**
-- Introduce `AudioContext` pipeline with `GainNode`, `ConvolverNode`, etc.
-- Keep the existing `<audio>`-based playback as fallback
+**If audio trim needs to persist across app restarts:**
+- Cannot store trimmed AudioBuffer directly (not serializable)
+- Must re-encode: either keep original Blob + trimPoints metadata, or encode trimmed PCM to WAV Blob
+- WAV Blob approach: inline Float32→PCM encoder (~30 lines), store new Blob in IndexedDB, update `durationSeconds`
+- The PCM WAV encoder is the recommended path — no library, ~30 lines of TypeScript
 
-**If supporting Android/Chrome in addition to iOS:**
-- Stack is identical — `audio/webm;codecs=opus` will be preferred by Chrome's `isTypeSupported()` detection automatically
-- The format-detection pattern handles this without any conditional code
+**If waveform data returns all zeros on a user's device:**
+- Indicates WebKit bug (pre-iOS 14.3) or AudioContext suspended state
+- Guard: if `dataArray.every(v => v === 128)` (silence baseline), render a flat line — not a blank canvas
+- This graceful fallback is preferable to showing nothing
 
 ---
 
@@ -189,29 +323,29 @@ if (navigator.storage?.persist) {
 
 | Package | Compatible With | Notes |
 |---------|-----------------|-------|
-| vite-plugin-pwa ^1.1.0 | Vite 7.x, Node 20.19+ | Requires Vite 5+ (verified); latest version confirmed compatible with Vite 7 in 2025 community guides |
-| idb-keyval 6.2.2 | All modern browsers | Fully ESM; no CommonJS mode; works with Vite's ESM output |
-| TypeScript 5.9 | Vite 7.x | Use `moduleResolution: "bundler"` in tsconfig for Vite |
-| MediaRecorder API | iOS 14.5+ (enabled by default); iOS 14.3–14.4 (disabled by default, requires Settings toggle) | Minimum viable iOS target is 14.5 for reliable MediaRecorder support |
+| TypeScript 5.8.3 | All v1.1 features | No TS version change needed |
+| idb-keyval 6.2.2 | Adding `color` field to SlotRecord | Transparent: idb-keyval stores the full object as-is |
+| vite-plugin-pwa 1.2.0 | No precache changes for v1.1 | Canvas/SVG elements are inline; no new static assets to precache |
+| Web Share API Level 2 | iOS 15+, Chrome 89+ | iOS 14.x falls through to download fallback |
+| AnalyserNode getByteTimeDomainData | iOS 14.3+ (all WebKit targets) | Float variant is NOT reliable; byte variant is safe |
 
 ---
 
 ## Sources
 
-- [WebKit blog — MediaRecorder API](https://webkit.org/blog/11353/mediarecorder-api/) — iOS MediaRecorder MIME types, format support (HIGH confidence)
-- [Can I Use — MediaRecorder](https://caniuse.com/mediarecorder) — iOS 14.5 support timeline (HIGH confidence)
-- [WebKit blog — Updates to Storage Policy](https://webkit.org/blog/14403/updates-to-storage-policy/) — Home screen PWA storage quota and eviction rules (HIGH confidence)
-- [Prototyp Digital — What we learned about PWAs and audio playback](https://blog.prototyp.digital/what-we-learned-about-pwas-and-audio-playback/) — Foreground-only audio, iOS PWA constraints (MEDIUM confidence)
-- [addpipe.com — Record lossless audio in Safari](https://blog.addpipe.com/record-high-quality-audio-in-safari-with-alac-and-pcm-support-via-mediarecorder/) — Safari ALAC/PCM in Technology Preview; AAC stable release (MEDIUM confidence)
-- [MagicBell — PWA iOS Limitations](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide) — Storage eviction, audio limitations summary (MEDIUM confidence)
-- [npm — idb-keyval](https://www.npmjs.com/package/idb-keyval) — version 6.2.2, May 2025 (HIGH confidence)
-- [Vite 7.0 release announcement](https://vite.dev/blog/announcing-vite7) — Vite 7.3.1 stable, Node 20.19+ requirement (HIGH confidence)
-- [GitHub — soundboard-pwa reference implementation](https://github.com/digitalcolony/soundboard-pwa) — Vanilla JS + Vite + Workbox pattern validation (MEDIUM confidence)
-- [Medium — iOS Safari forces audio to speakers with getUserMedia](https://medium.com/@python-javascript-php-html-css/ios-safari-forces-audio-output-to-speakers-when-using-getusermedia-2615196be6fe) — Speaker routing issue and workarounds (MEDIUM confidence)
-- [TypeScript release notes](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-9.html) — TS 5.9 stable, TS 6.0 beta status (HIGH confidence)
-- [dirask.com — Supported MIME types by MediaRecorder](https://dirask.com/posts/JavaScript-supported-Audio-Video-MIME-Types-by-MediaRecorder-Chrome-Firefox-and-Safari-jERn81) — Cross-browser format matrix (MEDIUM confidence)
+- [MDN — Web Audio API Visualizations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API) — AnalyserNode + Canvas exact pattern (HIGH confidence)
+- [MDN — AnalyserNode](https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode) — fftSize, frequencyBinCount, getByteTimeDomainData API (HIGH confidence)
+- [MDN — AudioBuffer](https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer) — getChannelData, copyToChannel for trim (HIGH confidence)
+- [MDN — Web Share API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Share_API) — navigator.share, canShare API (HIGH confidence)
+- [web.dev — Integrate with the OS sharing UI](https://web.dev/articles/web-share) — File sharing pattern, canShare({ files }) usage (HIGH confidence)
+- [GitHub MDN content issue #32019](https://github.com/mdn/content/issues/32019) — Confirmed iOS files-only constraint: no title/text alongside files (HIGH confidence)
+- [Tone.js issue #129 — getFloatTimeDomainData does not exist in Safari](https://github.com/Tonejs/Tone.js/issues/129) — Safari missing float variant (MEDIUM confidence)
+- [Apple Developer Forums — WebRTC Microphone Audio AnalyserNode](https://developer.apple.com/forums/thread/91754) — iOS AnalyserNode zero-fill issue (MEDIUM confidence; pre-iOS 14.3 era bug)
+- [CSS-Tricks — Building a Progress Ring Quickly](https://css-tricks.com/building-progress-ring-quickly/) — SVG stroke-dashoffset pattern (HIGH confidence)
+- [WebKit blog — MediaRecorder API](https://webkit.org/blog/11353/mediarecorder-api/) — iOS audio/mp4 is the only supported format (HIGH confidence)
+- [GitHub — audiojs/audio-buffer-utils](https://github.com/audiojs/audio-buffer-utils) — Trim/slice pattern reviewed; decided against as dependency (MEDIUM confidence)
 
 ---
 
-*Stack research for: iPhone PWA Soundboard*
-*Researched: 2026-02-22*
+*Stack research for: iPhone PWA Soundboard v1.1 — UX Polish + New Capabilities*
+*Researched: 2026-02-23*

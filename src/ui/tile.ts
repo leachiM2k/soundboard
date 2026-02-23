@@ -45,7 +45,10 @@ function escapeHtml(str: string): string {
 export function buildTileContent(index: number, tile: TileData): string {
   switch (tile.state) {
     case 'empty':
-      return '<span class="tile-icon">🎙</span>';
+      return `
+        <span class="tile-icon">🎙</span>
+        <span class="tile-hint">Aufnehmen</span>
+      `;
 
     case 'recording':
       return `

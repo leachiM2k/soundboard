@@ -25,14 +25,17 @@ body {
   min-height: 0;            /* CRITICAL: prevents flex child from overflowing */
 }
 
-/* ── Silent mode hint ─────────────────────────────────────────── */
-#silent-hint {
-  text-align: center;
+/* ── Top hints row ────────────────────────────────────────────── */
+#hints {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0 0;
+  flex-shrink: 0;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.35);
-  padding: 4px 0 0;
   letter-spacing: 0.02em;
-  flex-shrink: 0;
 }
 
 /* ── Grid ─────────────────────────────────────────────────────── */
@@ -73,6 +76,10 @@ body {
 .tile--empty {
   background: #2a2a2e;
   border: 1.5px dashed rgba(255, 255, 255, 0.18);
+}
+
+.tile--empty .tile-icon {
+  font-size: 22px;
 }
 
 /* Filled — accent color applied via CSS custom property */
@@ -156,6 +163,15 @@ body {
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+
+.tile-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+  line-height: 1.2;
+}
+
 
 .tile-elapsed {
   font-size: 18px;

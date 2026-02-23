@@ -4,7 +4,7 @@
 
 Eine Progressive Web App (PWA) für das iPhone, die als Soundboard mit 9 fixen Kacheln fungiert. Jede Kachel speichert einen selbst aufgenommenen Sound und spielt ihn per Tipp ab. Die App läuft direkt im Safari-Browser, kann zum Home Screen hinzugefügt werden, und funktioniert vollständig offline — kein App Store, kein Backend, keine Cloud.
 
-**Current state (v1.0):** Vollständig ausgeliefert und auf echtem iPhone verifiziert. Alle 17 v1-Requirements erfüllt.
+**Current state (v1.1 in progress):** v1.0 vollständig ausgeliefert. v1.1 fügt UX-Polish und neue Fähigkeiten hinzu: Wellenform-Visualizer, Audio-Trim, Clip-Export, Tile-Farben, Playback-Fortschritt, Clip-Länge, Bestätigungs-Dialog.
 
 ## Core Value
 
@@ -29,12 +29,18 @@ Ein Knopf drücken, ein Sound ertönt — sofort, zuverlässig, ohne Umwege.
 - ✓ App funktioniert offline nach erster Installation — v1.0 (PWA-02)
 - ✓ Einmaliger "Zum Home Screen" Hinweis im Safari-Browser-Modus — v1.0 (PWA-03)
 
-### Active (v1.1 candidates)
+### Active (v1.1)
 
-- [ ] Echtzeit-Wellenform-Visualisierung während Aufnahme (UX-01)
-- [ ] Bestätigungs-Dialog beim Löschen (UX-02)
-- [ ] Vorgeladener AudioBuffer-Cache beim App-Start für Null-Latenz (UX-03)
-- [ ] Graceful handling des getUserMedia Re-Permission-Bugs (WebKit #215884) in Standalone-Mode (RES-01)
+**Milestone v1.1 — UX-Polish + Neue Fähigkeiten**
+Goal: Aufnahme-Erfahrung verbessern, Clips bearbeitbar und teilbar machen, visuelle Orientierung durch Farben.
+
+- [ ] Echtzeit-Wellenform-Visualisierung während Aufnahme (VIZ-01)
+- [ ] Bestätigungs-Dialog beim Löschen (UX-01)
+- [ ] Clip-Länge als Badge auf belegten Tiles (UX-02)
+- [ ] Playback-Fortschrittsanzeige während Wiedergabe (UX-03)
+- [ ] Tile-Farben: frei wählbare Farbe pro Tile (COLOR-01)
+- [ ] Audio-Trim: Stille am Anfang/Ende abschneiden (TRIM-01)
+- [ ] Clip-Export via Web Share API / Datei-Download (SHARE-01)
 
 ### Out of Scope
 
@@ -78,4 +84,4 @@ Ein Knopf drücken, ein Sound ertönt — sofort, zuverlässig, ohne Umwege.
 | Tap-to-start/stop Aufnahme | Einfacher als Halten | ✓ Gut — UX auf Gerät bestätigt |
 
 ---
-*Last updated: 2026-02-22 after v1.0 milestone*
+*Last updated: 2026-02-23 after v1.1 milestone start*

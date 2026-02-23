@@ -17,7 +17,7 @@
 
 ### COLOR — Tile-Farben
 
-- [ ] **COLOR-01**: Nutzer kann pro Tile eine Farbe aus 8 Voreinstellungen wählen (zugänglich über Long-Press-Menü); gewählte Farbe bleibt nach App-Neustart erhalten
+- [x] **COLOR-01**: Nutzer kann pro Tile eine Farbe aus 8 Voreinstellungen wählen (zugänglich über Long-Press-Menü); gewählte Farbe bleibt nach App-Neustart erhalten
 
 ### TRIM — Audio-Bearbeitung
 
@@ -58,7 +58,7 @@
 |-------------|-------|--------|
 | UX-01 | Phase 4 | Complete |
 | UX-02 | Phase 4 | Complete |
-| COLOR-01 | Phase 4 | Pending |
+| COLOR-01 | Phase 4 | Complete |
 | VIZ-01 | Phase 5 | Pending |
 | UX-03 | Phase 5 | Pending |
 | TRIM-01 | Phase 6 | Pending |

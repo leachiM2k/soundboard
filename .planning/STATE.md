@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-23 after v1.1 milestone start)
 
 Milestone: v1.1 — UX-Polish + Neue Fähigkeiten
 Phase: 4 of 6 (Foundation)
-Plan: 2 of 3 in current phase
-Status: Executing — plan 02 complete
-Last activity: 2026-02-23 — Phase 4 Plan 02 complete (delete confirmation dialog, UX-01)
+Plan: 3 of 3 in current phase
+Status: Phase 4 complete — all 3 plans done
+Last activity: 2026-02-23 — Phase 4 Plan 03 complete (tile color picker, COLOR-01)
 
-Progress: [██░░░░░░░░] ~22% (v1.1, 2 of ~9 plans)
+Progress: [███░░░░░░░] ~33% (v1.1, 3 of ~9 plans)
 
 ## Performance Metrics
 
@@ -29,6 +29,7 @@ Progress: [██░░░░░░░░] ~22% (v1.1, 2 of ~9 plans)
 |-------|------|----------|-------|-------|
 | 04-foundation | 01 | ~15min | 3 | 6 |
 | 04-foundation | 02 | 1min | 2 | 4 |
+| 04-foundation | 03 | 2min | 2 | 5 |
 
 ## Accumulated Context
 
@@ -48,6 +49,8 @@ All v1.0 decisions carried forward.
 - Duration badge in playing branch mirrors has-sound branch — tile.record always set in playing state
 - [Phase 04-foundation]: UX-01 delete guard placed in action-sheet.ts wireBtn handler (not main.ts) — single responsibility, no double-guard
 - [Phase 04-foundation]: confirm-dialog uses clone-before-wire pattern (same as action-sheet); safety-net close listener resolves false for ESC/backdrop
+- [Phase 04-foundation]: Tasks 1 and 2 committed together: action-sheet.ts onColorChange interface change made main.ts fail TS2345 immediately
+- [Phase 04-foundation]: handleColorChange does not call clearAudioCache — color is metadata only, blob is unchanged
 
 ### Pending Todos
 
@@ -61,5 +64,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 4 Plan 02 complete — delete confirmation dialog (UX-01)
-Resume with: `/gsd:execute-phase 4` (next: plan 03)
+Stopped at: Phase 4 Plan 03 complete — tile color picker (COLOR-01)
+Resume with: `/gsd:execute-phase 5` (next: Phase 5 — Waveform)

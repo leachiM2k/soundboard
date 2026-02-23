@@ -102,3 +102,10 @@ None - no external service configuration required.
 ---
 *Phase: 04-foundation*
 *Completed: 2026-02-23*
+
+## Self-Check: PASSED
+
+- FOUND: src/ui/confirm-dialog.ts
+- FOUND: .planning/phases/04-foundation/04-02-SUMMARY.md
+- FOUND commit: e4403b3 (Task 1)
+- FOUND commit: 056ed4a (Task 2)

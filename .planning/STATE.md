@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-23 after v1.1 milestone start)
 
 Milestone: v1.1 — UX-Polish + Neue Fähigkeiten
 Phase: 4 of 6 (Foundation)
-Plan: 1 of 3 in current phase
-Status: Executing — plan 01 complete
-Last activity: 2026-02-23 — Phase 4 Plan 01 complete (schema + duration badge)
+Plan: 2 of 3 in current phase
+Status: Executing — plan 02 complete
+Last activity: 2026-02-23 — Phase 4 Plan 02 complete (delete confirmation dialog, UX-01)
 
-Progress: [█░░░░░░░░░] ~11% (v1.1, 1 of ~9 plans)
+Progress: [██░░░░░░░░] ~22% (v1.1, 2 of ~9 plans)
 
 ## Performance Metrics
 
@@ -24,7 +24,11 @@ Progress: [█░░░░░░░░░] ~11% (v1.1, 1 of ~9 plans)
 - Average duration: ~15 min/plan
 - Total execution time: ~2.5 hours
 
-*v1.1 metrics start after first plan completes.*
+**v1.1 metrics:**
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 04-foundation | 01 | ~15min | 3 | 6 |
+| 04-foundation | 02 | 1min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -42,6 +46,8 @@ All v1.0 decisions carried forward.
 **Phase 4 Plan 01 decisions:**
 - color?: string is optional on SlotRecord and TileData — no migration needed; v1.0 records load cleanly with undefined color
 - Duration badge in playing branch mirrors has-sound branch — tile.record always set in playing state
+- [Phase 04-foundation]: UX-01 delete guard placed in action-sheet.ts wireBtn handler (not main.ts) — single responsibility, no double-guard
+- [Phase 04-foundation]: confirm-dialog uses clone-before-wire pattern (same as action-sheet); safety-net close listener resolves false for ESC/backdrop
 
 ### Pending Todos
 
@@ -55,5 +61,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 4 Plan 01 complete — schema foundation (color?) + UX-02 duration badge fix
-Resume with: `/gsd:execute-phase 4` (next: plan 02 — confirm-dialog)
+Stopped at: Phase 4 Plan 02 complete — delete confirmation dialog (UX-01)
+Resume with: `/gsd:execute-phase 4` (next: plan 03)

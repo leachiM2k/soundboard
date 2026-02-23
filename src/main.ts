@@ -295,7 +295,10 @@ document.addEventListener('DOMContentLoaded', () => {
     .then((slots) => {
       slots.forEach((record, index) => {
         if (record) {
-          const tile = transitionTile(appState, index, 'has-sound', { record });
+          const tile = transitionTile(appState, index, 'has-sound', {
+            record,
+            color: record.color, // restore persisted color; undefined for v1.0 records (correct)
+          });
           tile.label = record.label; // restore persisted label
         }
       });

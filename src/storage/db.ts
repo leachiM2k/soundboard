@@ -12,6 +12,8 @@ export interface SlotRecord {
   durationSeconds?: number;
   /** User-customizable tile name. undefined = no label set. */
   label?: string;
+  // NEW: user-chosen CSS color. undefined = use index-based default
+  color?: string;
 }
 
 // SlotIndex is 0-8, mapping directly to tile positions in the 3x3 grid.

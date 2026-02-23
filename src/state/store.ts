@@ -18,6 +18,8 @@ export interface TileData {
   warningActive?: boolean;
   /** User-set tile name, synced from SlotRecord.label. */
   label?: string;
+  // NEW: synced from SlotRecord.color
+  color?: string;
 }
 
 export interface AppState {
@@ -69,6 +71,7 @@ export function transitionTile(
   } else if (newState === 'has-sound' || newState === 'playing') {
     next.record = data.record ?? tile.record;
     next.label = data.label ?? tile.label;
+    next.color = data.color ?? tile.color;
   } else if (newState === 'error') {
     next.errorMessage = data.errorMessage;
     // Preserve record for 'error' on defective blob (tile stays has-sound conceptually)

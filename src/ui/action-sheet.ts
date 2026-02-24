@@ -6,8 +6,9 @@ export interface ActionSheetCallbacks {
   onRename: () => void;
   onDelete: () => void;
   onColorChange: (color: string | undefined) => void;
-  onTrim?: () => void;    // NEW: trigger silence trim
-  onExport?: () => void;  // NEW: trigger clip export
+  onTrim?: () => void;
+  onExport?: () => void;
+  onImport?: () => void;
 }
 
 /**
@@ -25,6 +26,7 @@ export function showActionSheet(
   durationSeconds: number | undefined,
   callbacks: ActionSheetCallbacks,
   currentColor?: string,
+  mode: 'full' | 'import-only' = 'full',
 ): void {
   const dialog = document.getElementById('action-sheet') as HTMLDialogElement;
   const header = document.getElementById('action-sheet-header');
@@ -88,6 +90,7 @@ export function showActionSheet(
   wireBtn('btn-rename', callbacks.onRename);
   wireBtn('btn-trim', () => { callbacks.onTrim?.(); });
   wireBtn('btn-export', () => { callbacks.onExport?.(); });
+  wireBtn('btn-import', () => { callbacks.onImport?.(); });
   wireBtn('btn-delete', () => {
     showConfirmDialog('Sound löschen?').then((confirmed) => {
       if (confirmed) callbacks.onDelete();
@@ -107,10 +110,12 @@ export function showActionSheet(
   };
   dialog.addEventListener('click', onDialogClick);
 
-  // Clean up backdrop listener when dialog closes for any reason
+  // Clean up backdrop listener and mode class when dialog closes for any reason
   dialog.addEventListener('close', () => {
+    dialog.classList.remove('action-sheet--import-only');
     dialog.removeEventListener('click', onDialogClick);
   }, { once: true });
 
+  if (mode === 'import-only') dialog.classList.add('action-sheet--import-only');
   dialog.showModal();
 }

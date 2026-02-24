@@ -311,6 +311,12 @@ body {
   border-color: #ffffff;
 }
 
+.action-sheet--import-only .action-sheet-btn:not(#btn-import):not(#btn-cancel),
+.action-sheet--import-only .action-sheet-section-label,
+.action-sheet--import-only .action-sheet-colors {
+  display: none;
+}
+
 /* ── Rename Dialog ─────────────────────────────────────────────── */
 #rename-dialog {
   position: fixed;

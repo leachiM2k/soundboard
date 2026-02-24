@@ -1,6 +1,6 @@
 import { getMicrophoneStream, startRecording } from './audio/recorder';
 import { ensureAudioContextRunning, playBlob, stopTile, clearAudioCache, audioBufferCache, getAudioContext } from './audio/player';
-import { loadAllSlots, saveSlot, loadSlot, deleteSlot, SlotIndex, requestStoragePersistence } from './storage/db';
+import { loadAllSlots, saveSlot, loadSlot, deleteSlot, SlotIndex, SlotRecord, requestStoragePersistence } from './storage/db';
 import { findTrimOffsets, applyTrimToRecord } from './audio/trim';
 import { showTrimToast } from './ui/toast';
 import { createAppState, transitionTile, AppState } from './state/store';
@@ -13,6 +13,7 @@ import { acquireWakeLock, releaseWakeLock } from './audio/wake-lock';
 import { startRecordingViz, stopRecordingViz } from './ui/viz-recording';
 import { startPlaybackProgress, stopPlaybackProgress } from './ui/viz-playback';
 import { exportClip } from './ui/share';
+import { pickAudioFile } from './audio/import';
 
 const appState: AppState = createAppState();
 
@@ -263,6 +264,18 @@ async function handleTileTap(index: SlotIndex): Promise<void> {
 async function handleLongPress(index: SlotIndex): Promise<void> {
   const tile = appState.tiles[index];
 
+  // Empty tile long-press → show import-only action sheet
+  if (tile.state === 'empty') {
+    showActionSheet(index, undefined, undefined, {
+      onReRecord: () => {},
+      onRename: () => {},
+      onDelete: () => {},
+      onColorChange: () => {},
+      onImport: () => { importAndSave(index).catch(console.error); },
+    }, undefined, 'import-only');
+    return;
+  }
+
   // Only act on tiles that have a recording (has-sound, playing, or error-with-record)
   if (tile.state !== 'has-sound' && tile.state !== 'playing' && tile.state !== 'error') {
     return;
@@ -312,7 +325,38 @@ async function handleLongPress(index: SlotIndex): Promise<void> {
     onExport: () => {
       exportClip(record, index);
     },
+    onImport: () => { importAndSave(index).catch(console.error); },
   }, appState.tiles[index].color);
+}
+
+async function importAndSave(index: SlotIndex): Promise<void> {
+  // CRITICAL: pickAudioFile() before any await — iOS gesture context is lost after first await
+  const recordPromise = pickAudioFile();
+  let record: SlotRecord | null;
+  try {
+    record = await recordPromise;
+  } catch {
+    showTrimToast(null, 'Format nicht unterstützt');
+    return;
+  }
+  if (!record) return; // user cancelled
+
+  clearAudioCache(index);
+  transitionTile(appState, index, 'saving');
+  updateTile(index, appState.tiles[index]);
+
+  try {
+    await saveSlot(index, record);
+  } catch {
+    transitionTile(appState, index, 'error', { errorMessage: 'Speichern fehlgeschlagen.' });
+    updateTile(index, appState.tiles[index]);
+    return;
+  }
+
+  transitionTile(appState, index, 'has-sound', { record });
+  updateTile(index, appState.tiles[index]);
+
+  handleTrim(index).catch(console.error); // auto-trim, non-blocking
 }
 
 async function handleColorChange(index: SlotIndex, color: string | undefined): Promise<void> {
